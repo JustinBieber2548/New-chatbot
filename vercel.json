@@ -1,5 +1,14 @@
 {
-  "buildCommand": "cd backend && npm install",
-  "devCommand": "cd backend && npm start",
-  "installCommand": "cd backend && npm install"
+  "builds": [
+    {
+      "src": "backend/server.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "backend/server.js"
+    }
+  ]
 }
