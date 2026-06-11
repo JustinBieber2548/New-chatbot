@@ -12,8 +12,8 @@
       position: 'bottom-left',
       theme: 'light',
       title: 'PK Supply Chain',
-      subtitle: 'ออนไลน์ — ตอบกลับทันที',
-      placeholder: 'พิมพ์ข้อความ...',
+      subtitle: 'ออนไลน์',
+      placeholder: 'พิมพ์ข้อความ',
       width: '370px',
       height: '560px',
       allowedDomain: 'pksupplychain.com',
@@ -58,6 +58,7 @@
         ${isLeft ? 'left: 24px;' : 'right: 24px;'}
         font-family: Poppins, 'Noto Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         z-index: 9999;
+        box-sizing: border-box;
       `;
 
       const launcher = document.createElement('button');
@@ -82,6 +83,7 @@
         justify-content: center;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
         padding: 0;
+        box-sizing: border-box;
       `;
 
       launcher.addEventListener('mouseenter', () => {
@@ -109,21 +111,23 @@
         flex-direction: column;
         overflow: hidden;
         border: 1px solid rgba(15, 23, 42, 0.08);
+        box-sizing: border-box;
       `;
 
       const header = document.createElement('div');
       header.style.cssText = `
         background: ${this.config.brandDark};
         color: white;
-        padding: 12px 16px;
+        padding: 10px 12px;
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
+        box-sizing: border-box;
       `;
       header.innerHTML = `
         <div style="
-          width: 38px;
-          height: 38px;
+          width: 36px;
+          height: 36px;
           border-radius: 50%;
           background: #fff;
           display: flex;
@@ -132,32 +136,32 @@
           flex: 0 0 auto;
           overflow: hidden;
         ">
-          <img src="${logoUrl}" alt="PK Supply Chain" style="width: 31px; height: 24px; object-fit: contain;" />
+          <img src="${logoUrl}" alt="PK Supply Chain" style="width: 30px; height: 23px; object-fit: contain;" />
         </div>
-        <div style="min-width: 0;">
-          <div style="font-weight: 700; font-size: 14px; line-height: 1.2;">${this.config.title}</div>
+        <div style="min-width: 0; flex: 1 1 auto;">
+          <div style="font-weight: 700; font-size: 14px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.config.title}</div>
           <div style="display: flex; align-items: center; gap: 5px; font-size: 11px; line-height: 1.35; color: rgba(255,255,255,0.78);">
             <span style="width: 6px; height: 6px; border-radius: 50%; background: #18d47a; display: inline-block;"></span>
-            <span>${this.config.subtitle}</span>
+            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.config.subtitle}</span>
           </div>
         </div>
         <div style="
-          margin-left: auto;
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
+          flex: 0 0 auto;
         ">
           <div style="
             border: 1px solid rgba(255,255,255,0.32);
             border-radius: 999px;
             padding: 3px;
             display: flex;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
             line-height: 1;
           ">
-            <span style="background: #fff; color: ${this.config.brandDark}; border-radius: 999px; padding: 5px 8px;">TH</span>
-            <span style="color: rgba(255,255,255,0.72); padding: 5px 8px;">EN</span>
+            <span style="background: #fff; color: ${this.config.brandDark}; border-radius: 999px; padding: 5px 7px;">TH</span>
+            <span style="color: rgba(255,255,255,0.72); padding: 5px 7px;">EN</span>
           </div>
           <button id="chat-widget-close" aria-label="Close chat" style="
             background: none;
@@ -169,6 +173,7 @@
             padding: 0;
             width: 22px;
             height: 22px;
+            flex: 0 0 auto;
           ">&times;</button>
         </div>
       `;
@@ -180,6 +185,7 @@
         overflow-y: auto;
         padding: 16px;
         background: #f6f7fb;
+        box-sizing: border-box;
       `;
 
       const inputArea = document.createElement('div');
@@ -187,6 +193,7 @@
         padding: 10px 14px 14px;
         border-top: 1px solid #e1e5ee;
         background: #fff;
+        box-sizing: border-box;
       `;
 
       const leadButton = document.createElement('button');
@@ -202,6 +209,7 @@
         cursor: pointer;
         font-size: 12px;
         margin-bottom: 8px;
+        box-sizing: border-box;
       `;
       leadButton.addEventListener('click', () => {
         this.sendMessage('ต้องการฝากชื่อและอีเมลให้ทีมงานติดต่อกลับ', messagesContainer, input);
@@ -229,6 +237,7 @@
         outline: none;
         background: #fbfcff;
         transition: border-color 0.2s, box-shadow 0.2s;
+        box-sizing: border-box;
       `;
 
       input.addEventListener('focus', () => {
@@ -349,10 +358,13 @@
         font-size: 13px;
         line-height: 1.55;
         word-wrap: break-word;
+        overflow-wrap: anywhere;
+        word-break: break-word;
         background: ${isUser ? this.config.brandPrimary : '#ffffff'};
         color: ${isUser ? 'white' : '#111827'};
         border: ${isUser ? 'none' : '1px solid #dde2ec'};
         white-space: pre-line;
+        box-sizing: border-box;
         box-shadow: ${isUser ? 'none' : '0 1px 1px rgba(15, 23, 42, 0.03)'};
       `;
       bubble.textContent = msg.text;

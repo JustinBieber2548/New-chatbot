@@ -20,9 +20,32 @@ const LLM_MODEL = process.env.GEMINI_MODEL || process.env.OPENAI_MODEL || proces
 const LLM_BASE_URL = (process.env.OPENAI_BASE_URL || process.env.LLM_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
 const LLM_API_STYLE = (process.env.LLM_API_STYLE || (LLM_PROVIDER === 'gemini' ? 'gemini' : 'responses')).toLowerCase();
 const LLM_ENABLED = process.env.USE_LLM !== 'false' && Boolean(LLM_API_KEY);
+const LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS || 6500);
+
+const corsOptions = {
+  origin(origin, callback) {
+    const allowedOrigins = [
+      'https://pksupplychain.com',
+      'https://www.pksupplychain.com',
+      'http://localhost:3000',
+      'http://localhost:5173'
+    ];
+
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(null, false);
+  },
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'X-API-Key'],
+  optionsSuccessStatus: 204
+};
 
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 
 // Serve chat widget
@@ -206,12 +229,26 @@ function extractGeminiText(data) {
     .trim();
 }
 
+async function fetchWithTimeout(url, options) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
+
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function generateLLMReply(message, history) {
   if (!LLM_ENABLED) return null;
 
   try {
     if (LLM_API_STYLE === 'gemini') {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(LLM_MODEL)}:generateContent`, {
+      const response = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(LLM_MODEL)}:generateContent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -235,7 +272,7 @@ async function generateLLMReply(message, history) {
     }
 
     if (LLM_API_STYLE === 'chat') {
-      const response = await fetch(`${LLM_BASE_URL}/chat/completions`, {
+      const response = await fetchWithTimeout(`${LLM_BASE_URL}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -257,7 +294,7 @@ async function generateLLMReply(message, history) {
       return data.choices?.[0]?.message?.content?.trim() || null;
     }
 
-    const response = await fetch(`${LLM_BASE_URL}/responses`, {
+    const response = await fetchWithTimeout(`${LLM_BASE_URL}/responses`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
