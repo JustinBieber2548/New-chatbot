@@ -12,10 +12,15 @@
       position: 'bottom-right',
       theme: 'light',
       title: 'PK Supply Chain Support',
-      placeholder: 'Type your message (Thai or English)...',
+      subtitle: 'พูดคุยได้ทั้งภาษาไทยและ English',
+      placeholder: 'พิมพ์ข้อความ / Type a message...',
       width: '400px',
       height: '600px',
-      allowedDomain: 'pksupplychain.com'
+      allowedDomain: 'pksupplychain.com',
+      brandPrimary: '#C90F16',
+      brandSecondary: '#0F42C3',
+      brandDark: '#24201F',
+      welcomeMessage: 'สวัสดีครับ ผมช่วยตอบคำถามได้ทั้งภาษาไทยและ English\nHello, I can help in Thai and English.'
     },
 
     state: {
@@ -47,7 +52,7 @@
         position: fixed;
         bottom: 20px;
         right: 20px;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        font-family: Poppins, 'Noto Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         z-index: 9999;
       `;
 
@@ -62,17 +67,17 @@
       bubble.innerHTML = `
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-        </svg>1e40af 0%, #1e3a8a
+        </svg>
       `;
       bubble.style.cssText = `
         width: 56px;
         height: 56px;
         border-radius: 50%;
         border: none;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, ${this.config.brandPrimary} 0%, ${this.config.brandSecondary} 100%);
         color: white;
         cursor: pointer;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 8px 20px rgba(201, 15, 22, 0.28);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -96,8 +101,8 @@
         position: absolute;
         bottom: 80px;
         right: 0;
-        width: ${this.config.width};
-        height: ${this.config.height};
+        width: min(${this.config.width}, calc(100vw - 32px));
+        height: min(${this.config.height}, calc(100vh - 120px));
         background: white;
         border-radius: 12px;
         box-shadow: 0 5px 40px rgba(0, 0, 0, 0.16);
@@ -109,14 +114,13 @@
       // Header
       const header = document.createElement('div');
       header.style.cssText = `
-        background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+        background: linear-gradient(135deg, ${this.config.brandPrimary} 0%, ${this.config.brandDark} 100%);
         color: white;
         padding: 16px;
-        font-weight: 600;
-        font-size: 16px;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 12px;
       `;
       header.innerHTML = `
         <span>🔧 ${this.config.title}</span>
@@ -132,6 +136,33 @@
         ">×</button>
       `;
 
+      header.innerHTML = `
+        <div style="min-width: 0;">
+          <div style="font-weight: 700; font-size: 16px; line-height: 1.25;">${this.config.title}</div>
+          <div style="font-size: 12px; line-height: 1.35; opacity: 0.92;">${this.config.subtitle}</div>
+        </div>
+        <div style="
+          margin-left: auto;
+          background: rgba(255,255,255,0.16);
+          border: 1px solid rgba(255,255,255,0.24);
+          border-radius: 999px;
+          padding: 4px 8px;
+          font-size: 11px;
+          font-weight: 700;
+          white-space: nowrap;
+        ">TH / EN</div>
+        <button id="chat-widget-close" style="
+          background: none;
+          border: none;
+          color: white;
+          cursor: pointer;
+          font-size: 20px;
+          padding: 0;
+          width: 20px;
+          height: 20px;
+        ">&times;</button>
+      `;
+
       // Messages container
       const messagesContainer = document.createElement('div');
       messagesContainer.id = 'chat-widget-messages';
@@ -139,8 +170,19 @@
         flex: 1;
         overflow-y: auto;
         padding: 16px;
-        background: #f9fafb;
+        background: #f8f8f8;
       `;
+
+      const languageHint = document.createElement('div');
+      languageHint.style.cssText = `
+        background: #fff;
+        border-bottom: 1px solid #ececec;
+        color: ${this.config.brandDark};
+        padding: 10px 16px;
+        font-size: 12px;
+        line-height: 1.45;
+      `;
+      languageHint.textContent = 'รองรับภาษาไทยและ English | Thai and English supported';
 
       // Input area
       const inputArea = document.createElement('div');
@@ -167,7 +209,7 @@
       `;
 
       input.addEventListener('focus', () => {
-        input.style.borderColor = '#667eea';
+        input.style.borderColor = this.config.brandPrimary;
       });
       input.addEventListener('blur', () => {
         input.style.borderColor = '#d1d5db';
@@ -181,7 +223,7 @@
         </svg>
       `;
       sendBtn.style.cssText = `
-        background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+        background: ${this.config.brandPrimary};
         color: white;
         border: none;
         border-radius: 6px;
@@ -206,6 +248,7 @@
       inputArea.appendChild(sendBtn);
 
       chatWindow.appendChild(header);
+      chatWindow.appendChild(languageHint);
       chatWindow.appendChild(messagesContainer);
       chatWindow.appendChild(inputArea);
 
@@ -224,6 +267,12 @@
         messagesContainer,
         input
       };
+
+      this.addMessage({
+        text: this.config.welcomeMessage,
+        sender: 'bot',
+        timestamp: new Date()
+      }, messagesContainer);
     },
 
     toggleWidget() {
@@ -275,8 +324,10 @@
         font-size: 14px;
         line-height: 1.4;
         word-wrap: break-word;
-        background: ${isUser ? 'linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%)' : '#e5e7eb'};
+        background: ${isUser ? this.config.brandSecondary : '#ffffff'};
         color: ${isUser ? 'white' : '#1f2937'};
+        border: ${isUser ? 'none' : '1px solid #e5e7eb'};
+        white-space: pre-line;
       `;
       bubble.textContent = msg.text;
 
