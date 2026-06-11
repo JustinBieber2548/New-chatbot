@@ -14,6 +14,11 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.API_KEY || 'test-key-123';
+const LLM_API_KEY = process.env.OPENAI_API_KEY || process.env.LLM_API_KEY || '';
+const LLM_MODEL = process.env.OPENAI_MODEL || process.env.LLM_MODEL || 'gpt-5.4-mini';
+const LLM_BASE_URL = (process.env.OPENAI_BASE_URL || process.env.LLM_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
+const LLM_API_STYLE = (process.env.LLM_API_STYLE || 'responses').toLowerCase();
+const LLM_ENABLED = process.env.USE_LLM !== 'false' && Boolean(LLM_API_KEY);
 
 // Middleware
 app.use(cors());
@@ -51,7 +56,7 @@ const verifyDomain = (req, res, next) => {
  * Main chat endpoint
  * Body: { message: string, sessionId: string, timestamp: string }
  */
-app.post('/chat', verifyApiKey, verifyDomain, (req, res) => {
+app.post('/chat', verifyApiKey, verifyDomain, async (req, res) => {
   const { message, sessionId } = req.body;
 
   if (!message || !sessionId) {
@@ -70,8 +75,7 @@ app.post('/chat', verifyApiKey, verifyDomain, (req, res) => {
       timestamp: new Date()
     });
 
-    // Generate reply (simple rule-based for now)
-    const reply = generateReply(message);
+    const reply = await generateReply(message, conv);
 
     // Store reply
     conv.push({
@@ -129,7 +133,124 @@ function formatBilingualReply(message, thaiText, englishText) {
     : `${englishText}\n\nภาษาไทย: ${thaiText}`;
 }
 
-function generateReply(message) {
+function isModelQuestion(message) {
+  return /\b(model|llm|gpt|gemini|ai model|ai)\b|what are you|ใช้โมเดล|โมเดล|เอไอ/i.test(message);
+}
+
+function getModelInfoReply(message) {
+  if (!isModelQuestion(message)) return null;
+
+  if (LLM_ENABLED) {
+    return formatBilingualReply(
+      message,
+      `ตอนนี้ผมเป็น AI Agent สำหรับฝ่ายขายและซัพพอร์ตของ PK Supply Chain โดยตั้งค่าให้ใช้โมเดล ${LLM_MODEL} บนฝั่งเซิร์ฟเวอร์ครับ`,
+      `I am currently configured as a PK Supply Chain sales and support AI agent using ${LLM_MODEL} on the server side.`
+    );
+  }
+
+  return formatBilingualReply(
+    message,
+    `ตอนนี้ระบบยังไม่ได้เปิดใช้ LLM เพราะยังไม่มี OPENAI_API_KEY หรือ LLM_API_KEY ใน Vercel ครับ เมื่อตั้งค่าแล้ว Agent จะใช้โมเดล ${LLM_MODEL}`,
+    `The LLM is not active yet because OPENAI_API_KEY or LLM_API_KEY is not set in Vercel. Once configured, the agent will use ${LLM_MODEL}.`
+  );
+}
+
+function buildAgentInstructions() {
+  return [
+    'You are the bilingual Thai/English sales and support agent for PK Supply Chain Company Limited.',
+    'Company facts: PK Supply Chain provides design, manufacturing, installation, maintenance, and repair services. The company has more than 20 years of professional experience.',
+    'Contact facts: phone 02-1082828, email pongchai@pksupplychain.com, address 22/5 Moo 10, Bueng Thong Lang, Lam Luk Ka, Pathum Thani 12150.',
+    'Your goals: help visitors, qualify leads, explain services clearly, guide prospects toward contacting the team for quotation, and collect useful project details such as service type, site location, timeline, quantity/scope, budget range, and contact information.',
+    'Use a warm, professional, consultative sales tone. Do not pressure the customer. Do not invent exact prices, discounts, legal claims, certifications, or project timelines.',
+    'Reply in the same language as the customer. If the customer mixes Thai and English, answer bilingually. Keep replies concise and useful.',
+    `If asked what model you use, say you are configured to use ${LLM_MODEL} on the server side. Never reveal API keys or private environment variables.`
+  ].join('\n');
+}
+
+function toOpenAIMessages(history) {
+  return history.slice(-10).map(item => ({
+    role: item.role === 'assistant' ? 'assistant' : 'user',
+    content: item.message
+  }));
+}
+
+function extractResponseText(data) {
+  if (typeof data.output_text === 'string' && data.output_text.trim()) {
+    return data.output_text.trim();
+  }
+
+  const parts = [];
+  for (const outputItem of data.output || []) {
+    for (const contentItem of outputItem.content || []) {
+      if (typeof contentItem.text === 'string') parts.push(contentItem.text);
+    }
+  }
+
+  return parts.join('\n').trim();
+}
+
+async function generateLLMReply(message, history) {
+  if (!LLM_ENABLED) return null;
+
+  try {
+    if (LLM_API_STYLE === 'chat') {
+      const response = await fetch(`${LLM_BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${LLM_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: LLM_MODEL,
+          messages: [
+            { role: 'system', content: buildAgentInstructions() },
+            ...toOpenAIMessages(history)
+          ],
+          temperature: 0.4,
+          max_tokens: 600
+        })
+      });
+
+      if (!response.ok) throw new Error(`LLM chat request failed: ${response.status}`);
+      const data = await response.json();
+      return data.choices?.[0]?.message?.content?.trim() || null;
+    }
+
+    const response = await fetch(`${LLM_BASE_URL}/responses`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${LLM_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: LLM_MODEL,
+        instructions: buildAgentInstructions(),
+        input: toOpenAIMessages(history),
+        max_output_tokens: 700,
+        store: false
+      })
+    });
+
+    if (!response.ok) throw new Error(`LLM responses request failed: ${response.status}`);
+    const data = await response.json();
+    return extractResponseText(data) || null;
+  } catch (error) {
+    console.error('LLM agent error:', error.message);
+    return null;
+  }
+}
+
+async function generateReply(message, history = []) {
+  const modelInfoReply = getModelInfoReply(message);
+  if (modelInfoReply) return modelInfoReply;
+
+  const llmReply = await generateLLMReply(message, history);
+  if (llmReply) return llmReply;
+
+  return generateRuleBasedReply(message);
+}
+
+function generateRuleBasedReply(message) {
   const msg = message.toLowerCase();
 
   if (/\b(model|llm|gpt|gemini|ai model|ai)\b|what are you|ใช้โมเดล|โมเดล|เอไอ/i.test(message)) {

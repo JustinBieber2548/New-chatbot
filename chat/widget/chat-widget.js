@@ -18,8 +18,9 @@
       height: '600px',
       allowedDomain: 'pksupplychain.com',
       brandPrimary: '#C90F16',
-      brandSecondary: '#0F42C3',
+      brandSecondary: '#C90F16',
       brandDark: '#24201F',
+      logoUrl: null,
       welcomeMessage: 'สวัสดีครับ ผมช่วยตอบคำถามได้ทั้งภาษาไทยและ English\nHello, I can help in Thai and English.'
     },
 
@@ -45,6 +46,8 @@
     },
 
     createWidget() {
+      const logoUrl = this.config.logoUrl || `${this.config.apiUrl || ''}/pk-logo.png`;
+
       // Create container
       const container = document.createElement('div');
       container.id = 'chat-widget-container';
@@ -65,16 +68,14 @@
       const bubble = document.createElement('button');
       bubble.id = 'chat-widget-bubble';
       bubble.innerHTML = `
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-        </svg>
+        <img src="${logoUrl}" alt="PK Supply Chain" style="width: 36px; height: 28px; object-fit: contain;" />
       `;
       bubble.style.cssText = `
         width: 56px;
         height: 56px;
         border-radius: 50%;
         border: none;
-        background: linear-gradient(135deg, ${this.config.brandPrimary} 0%, ${this.config.brandSecondary} 100%);
+        background: #ffffff;
         color: white;
         cursor: pointer;
         box-shadow: 0 8px 20px rgba(201, 15, 22, 0.28);
@@ -114,7 +115,7 @@
       // Header
       const header = document.createElement('div');
       header.style.cssText = `
-        background: linear-gradient(135deg, ${this.config.brandPrimary} 0%, ${this.config.brandDark} 100%);
+        background: ${this.config.brandPrimary};
         color: white;
         padding: 16px;
         display: flex;
@@ -137,6 +138,15 @@
       `;
 
       header.innerHTML = `
+        <img src="${logoUrl}" alt="PK Supply Chain" style="
+          width: 44px;
+          height: 32px;
+          object-fit: contain;
+          background: #fff;
+          border-radius: 6px;
+          padding: 3px;
+          flex: 0 0 auto;
+        " />
         <div style="min-width: 0;">
           <div style="font-weight: 700; font-size: 16px; line-height: 1.25;">${this.config.title}</div>
           <div style="font-size: 12px; line-height: 1.35; opacity: 0.92;">${this.config.subtitle}</div>
