@@ -5,33 +5,54 @@
  */
 
 (function () {
+  const I18N = {
+    th: {
+      title: 'PK Supply Chain',
+      subtitle: 'ออนไลน์ — ตอบกลับทันที',
+      placeholder: 'พิมพ์ข้อความ...',
+      leadButton: 'ฝากชื่อและอีเมล',
+      leadMessage: 'ต้องการฝากชื่อและอีเมลให้ทีมงานติดต่อกลับ',
+      welcome: 'สวัสดีครับ เราเป็นผู้ช่วยของ PK Supply Chain สอบถามเรื่องบริการระบบลำเลียงหรือฝากข้อมูลให้ทีมงานติดต่อกลับได้เลยครับ',
+      apiMissing: 'ยังไม่ได้ตั้งค่า API กรุณาตั้งค่า apiUrl ใน ChatWidget.init()',
+      apiError: 'เชื่อมต่อบริการแชทไม่ได้ กรุณาลองอีกครั้งครับ'
+    },
+    en: {
+      title: 'PK Supply Chain',
+      subtitle: 'Online — quick reply',
+      placeholder: 'Type a message...',
+      leadButton: 'Leave name and email',
+      leadMessage: 'I would like to leave my name and email for the team to contact me.',
+      welcome: 'Hello, we are the PK Supply Chain assistant. Ask about conveyor services or leave your details for our team to contact you.',
+      apiMissing: 'API is not configured. Please set apiUrl in ChatWidget.init().',
+      apiError: 'Could not connect to the chat service. Please try again.'
+    }
+  };
+
   const ChatWidget = {
     config: {
       apiUrl: null,
       apiKey: null,
       position: 'bottom-left',
-      theme: 'light',
-      title: 'PK Supply Chain',
-      subtitle: 'ออนไลน์',
-      placeholder: 'พิมพ์ข้อความ',
-      width: '370px',
+      language: 'th',
+      width: '366px',
       height: '560px',
       allowedDomain: 'pksupplychain.com',
       brandPrimary: '#B80000',
       brandDark: '#1D2338',
-      logoUrl: null,
-      welcomeMessage: 'สวัสดีครับ ผมเป็นผู้ช่วยของ PK Supply Chain สอบถามเรื่องบริการซัพพลายเชนได้เลย หรือฝากข้อมูลให้ทีมงานติดต่อกลับครับ'
+      logoUrl: null
     },
 
     state: {
       isOpen: false,
       messages: [],
       sessionId: null,
-      typingEl: null
+      typingEl: null,
+      language: 'th'
     },
 
     init(options = {}) {
       this.config = { ...this.config, ...options };
+      this.state.language = this.config.language === 'en' ? 'en' : 'th';
 
       const currentDomain = window.location.hostname;
       if (!currentDomain.includes(this.config.allowedDomain) && !currentDomain.includes('localhost')) {
@@ -40,10 +61,67 @@
       }
 
       document.querySelector('#chat-widget-container')?.remove();
+      this.ensureStyles();
       this.state.sessionId = this.generateSessionId();
       this.createWidget();
       this.attachEventListeners();
       console.log('PK Supply Chain Chat Widget initialized');
+    },
+
+    t(key) {
+      return I18N[this.state.language][key] || I18N.th[key] || key;
+    },
+
+    ensureStyles() {
+      if (document.querySelector('#chat-widget-styles')) return;
+
+      const style = document.createElement('style');
+      style.id = 'chat-widget-styles';
+      style.textContent = `
+        @keyframes pkTypingPulse {
+          0%, 80%, 100% { opacity: .28; transform: translateY(0); }
+          40% { opacity: 1; transform: translateY(-3px); }
+        }
+
+        #chat-widget-container, #chat-widget-container * {
+          box-sizing: border-box;
+        }
+
+        #chat-widget-container button,
+        #chat-widget-container input {
+          font-family: inherit;
+        }
+
+        .pk-lang-button {
+          border: 0;
+          border-radius: 999px;
+          padding: 5px 8px;
+          background: transparent;
+          color: rgba(255,255,255,.72);
+          cursor: pointer;
+          font-size: 10px;
+          font-weight: 800;
+          line-height: 1;
+        }
+
+        .pk-lang-button.is-active {
+          background: #fff;
+          color: #1D2338;
+        }
+
+        .pk-typing-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: #6b7280;
+          display: inline-block;
+          animation: pkTypingPulse 1.05s infinite ease-in-out;
+        }
+
+        .pk-typing-dot:nth-child(2) { animation-delay: .14s; }
+        .pk-typing-dot:nth-child(3) { animation-delay: .28s; }
+      `;
+      document.head.appendChild(style);
     },
 
     createWidget() {
@@ -58,7 +136,6 @@
         ${isLeft ? 'left: 24px;' : 'right: 24px;'}
         font-family: Poppins, 'Noto Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         z-index: 9999;
-        box-sizing: border-box;
       `;
 
       const launcher = document.createElement('button');
@@ -83,7 +160,6 @@
         justify-content: center;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
         padding: 0;
-        box-sizing: border-box;
       `;
 
       launcher.addEventListener('mouseenter', () => {
@@ -111,23 +187,23 @@
         flex-direction: column;
         overflow: hidden;
         border: 1px solid rgba(15, 23, 42, 0.08);
-        box-sizing: border-box;
       `;
 
       const header = document.createElement('div');
       header.style.cssText = `
         background: ${this.config.brandDark};
         color: white;
-        padding: 10px 12px;
+        height: 50px;
+        padding: 8px 12px;
         display: flex;
         align-items: center;
         gap: 8px;
-        box-sizing: border-box;
+        flex: 0 0 auto;
       `;
       header.innerHTML = `
         <div style="
-          width: 36px;
-          height: 36px;
+          width: 34px;
+          height: 34px;
           border-radius: 50%;
           background: #fff;
           display: flex;
@@ -136,32 +212,19 @@
           flex: 0 0 auto;
           overflow: hidden;
         ">
-          <img src="${logoUrl}" alt="PK Supply Chain" style="width: 30px; height: 23px; object-fit: contain;" />
+          <img src="${logoUrl}" alt="PK Supply Chain" style="width: 29px; height: 22px; object-fit: contain;" />
         </div>
         <div style="min-width: 0; flex: 1 1 auto;">
-          <div style="font-weight: 700; font-size: 14px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.config.title}</div>
-          <div style="display: flex; align-items: center; gap: 5px; font-size: 11px; line-height: 1.35; color: rgba(255,255,255,0.78);">
-            <span style="width: 6px; height: 6px; border-radius: 50%; background: #18d47a; display: inline-block;"></span>
-            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.config.subtitle}</span>
+          <div data-chat-title style="font-weight: 800; font-size: 14px; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.t('title')}</div>
+          <div style="display: flex; align-items: center; gap: 5px; font-size: 11px; line-height: 1.25; color: rgba(255,255,255,0.78); white-space: nowrap; overflow: hidden;">
+            <span style="width: 6px; height: 6px; border-radius: 50%; background: #18d47a; display: inline-block; flex: 0 0 auto;"></span>
+            <span data-chat-subtitle style="overflow: hidden; text-overflow: ellipsis;">${this.t('subtitle')}</span>
           </div>
         </div>
-        <div style="
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          flex: 0 0 auto;
-        ">
-          <div style="
-            border: 1px solid rgba(255,255,255,0.32);
-            border-radius: 999px;
-            padding: 3px;
-            display: flex;
-            font-size: 10px;
-            font-weight: 700;
-            line-height: 1;
-          ">
-            <span style="background: #fff; color: ${this.config.brandDark}; border-radius: 999px; padding: 5px 7px;">TH</span>
-            <span style="color: rgba(255,255,255,0.72); padding: 5px 7px;">EN</span>
+        <div style="display: flex; align-items: center; gap: 8px; flex: 0 0 auto;">
+          <div style="border: 1px solid rgba(255,255,255,0.32); border-radius: 999px; padding: 3px; display: flex; line-height: 1;">
+            <button type="button" data-chat-lang="th" class="pk-lang-button">TH</button>
+            <button type="button" data-chat-lang="en" class="pk-lang-button">EN</button>
           </div>
           <button id="chat-widget-close" aria-label="Close chat" style="
             background: none;
@@ -185,7 +248,6 @@
         overflow-y: auto;
         padding: 16px;
         background: #f6f7fb;
-        box-sizing: border-box;
       `;
 
       const inputArea = document.createElement('div');
@@ -193,12 +255,13 @@
         padding: 10px 14px 14px;
         border-top: 1px solid #e1e5ee;
         background: #fff;
-        box-sizing: border-box;
+        flex: 0 0 auto;
       `;
 
       const leadButton = document.createElement('button');
       leadButton.type = 'button';
-      leadButton.textContent = 'ฝากชื่อและอีเมล';
+      leadButton.setAttribute('data-chat-lead', 'true');
+      leadButton.textContent = this.t('leadButton');
       leadButton.style.cssText = `
         width: 100%;
         height: 32px;
@@ -209,10 +272,9 @@
         cursor: pointer;
         font-size: 12px;
         margin-bottom: 8px;
-        box-sizing: border-box;
       `;
       leadButton.addEventListener('click', () => {
-        this.sendMessage('ต้องการฝากชื่อและอีเมลให้ทีมงานติดต่อกลับ', messagesContainer, input);
+        this.sendMessage(this.t('leadMessage'), messagesContainer, input);
       });
 
       const inputRow = document.createElement('div');
@@ -225,7 +287,7 @@
       const input = document.createElement('input');
       input.id = 'chat-widget-input';
       input.type = 'text';
-      input.placeholder = this.config.placeholder;
+      input.placeholder = this.t('placeholder');
       input.style.cssText = `
         flex: 1;
         min-width: 0;
@@ -237,7 +299,6 @@
         outline: none;
         background: #fbfcff;
         transition: border-color 0.2s, box-shadow 0.2s;
-        box-sizing: border-box;
       `;
 
       input.addEventListener('focus', () => {
@@ -293,6 +354,9 @@
       chatWindow.appendChild(inputArea);
 
       header.querySelector('#chat-widget-close').addEventListener('click', () => this.toggleWidget());
+      header.querySelectorAll('[data-chat-lang]').forEach((button) => {
+        button.addEventListener('click', () => this.setLanguage(button.dataset.chatLang));
+      });
 
       container.appendChild(launcher);
       container.appendChild(chatWindow);
@@ -302,15 +366,45 @@
         container,
         launcher,
         chatWindow,
+        header,
         messagesContainer,
-        input
+        input,
+        leadButton
       };
 
+      this.updateLanguageUI();
       this.addMessage({
-        text: this.config.welcomeMessage,
+        text: this.t('welcome'),
         sender: 'bot',
         timestamp: new Date()
       }, messagesContainer);
+    },
+
+    setLanguage(language) {
+      if (!I18N[language] || this.state.language === language) return;
+
+      this.state.language = language;
+      this.updateLanguageUI();
+      this.addMessage({
+        text: this.t('welcome'),
+        sender: 'bot',
+        timestamp: new Date()
+      }, this.elements.messagesContainer);
+    },
+
+    updateLanguageUI() {
+      if (!this.elements) return;
+
+      const title = this.elements.header.querySelector('[data-chat-title]');
+      const subtitle = this.elements.header.querySelector('[data-chat-subtitle]');
+      if (title) title.textContent = this.t('title');
+      if (subtitle) subtitle.textContent = this.t('subtitle');
+      if (this.elements.input) this.elements.input.placeholder = this.t('placeholder');
+      if (this.elements.leadButton) this.elements.leadButton.textContent = this.t('leadButton');
+
+      this.elements.header.querySelectorAll('[data-chat-lang]').forEach((button) => {
+        button.classList.toggle('is-active', button.dataset.chatLang === this.state.language);
+      });
     },
 
     toggleWidget() {
@@ -364,7 +458,6 @@
         color: ${isUser ? 'white' : '#111827'};
         border: ${isUser ? 'none' : '1px solid #dde2ec'};
         white-space: pre-line;
-        box-sizing: border-box;
         box-shadow: ${isUser ? 'none' : '0 1px 1px rgba(15, 23, 42, 0.03)'};
       `;
       bubble.textContent = msg.text;
@@ -386,15 +479,18 @@
       `;
       typingEl.innerHTML = `
         <div style="
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
           background: #fff;
           border: 1px solid #dde2ec;
           border-radius: 16px;
-          padding: 8px 12px;
-          color: #6b7280;
-          font-weight: 700;
-          letter-spacing: 4px;
-          line-height: 1;
-        ">•••</div>
+          padding: 9px 12px;
+        ">
+          <span class="pk-typing-dot"></span>
+          <span class="pk-typing-dot"></span>
+          <span class="pk-typing-dot"></span>
+        </div>
       `;
 
       this.state.typingEl = typingEl;
@@ -413,7 +509,7 @@
       if (!this.config.apiUrl) {
         console.warn('API URL not configured');
         this.addMessage({
-          text: 'API not configured. Please set apiUrl in ChatWidget.init()',
+          text: this.t('apiMissing'),
           sender: 'bot',
           timestamp: new Date()
         }, this.elements.messagesContainer);
@@ -423,6 +519,7 @@
       const payload = {
         message,
         sessionId: this.state.sessionId,
+        language: this.state.language,
         timestamp: new Date().toISOString()
       };
 
@@ -451,7 +548,7 @@
           this.removeTyping();
           console.error('Chat API error:', err);
           this.addMessage({
-            text: 'เชื่อมต่อบริการแชทไม่ได้ กรุณาลองอีกครั้งครับ',
+            text: this.t('apiError'),
             sender: 'bot',
             timestamp: new Date()
           }, this.elements.messagesContainer);

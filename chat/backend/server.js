@@ -81,7 +81,7 @@ const verifyDomain = (req, res, next) => {
  * Body: { message: string, sessionId: string, timestamp: string }
  */
 app.post('/chat', verifyApiKey, verifyDomain, async (req, res) => {
-  const { message, sessionId } = req.body;
+  const { message, sessionId, language } = req.body;
 
   if (!message || !sessionId) {
     return res.status(400).json({ error: 'Missing message or sessionId' });
@@ -99,7 +99,7 @@ app.post('/chat', verifyApiKey, verifyDomain, async (req, res) => {
       timestamp: new Date()
     });
 
-    const reply = await generateReply(message, conv);
+    const reply = await generateReply(message, conv, language);
 
     // Store reply
     conv.push({
@@ -179,14 +179,27 @@ function getModelInfoReply(message) {
   );
 }
 
-function buildAgentInstructions() {
+function buildAgentInstructions(language = 'th') {
+  const languageName = language === 'en' ? 'English' : 'Thai';
+
   return [
-    'You are the bilingual Thai/English sales and support agent for PK Supply Chain Company Limited.',
-    'Company facts: PK Supply Chain provides design, manufacturing, installation, maintenance, and repair services. The company has more than 20 years of professional experience.',
-    'Contact facts: phone 02-1082828, email pongchai@pksupplychain.com, address 22/5 Moo 10, Bueng Thong Lang, Lam Luk Ka, Pathum Thani 12150.',
-    'Your goals: help visitors, qualify leads, explain services clearly, guide prospects toward contacting the team for quotation, and collect useful project details such as service type, site location, timeline, quantity/scope, budget range, and contact information.',
-    'Use a warm, professional, consultative sales tone. Do not pressure the customer. Do not invent exact prices, discounts, legal claims, certifications, or project timelines.',
-    'Reply in the same language as the customer. If the customer mixes Thai and English, answer bilingually. Keep replies concise and useful, ideally under 90 words.',
+    'You are pk, the official AI sales and support assistant for PK Supply Chain Co., Ltd.',
+    `Current selected chat language is ${languageName}. Reply in ${languageName} unless the visitor clearly asks to switch language.`,
+    'Use "เรา" in Thai, and "we" in English. Do not use first-person singular.',
+    'Answer from the knowledge base below only. If the answer is not available, politely say the support team will contact the customer with more information.',
+    'Keep replies concise, clear, professional, and natural, ideally under 90 words.',
+    'After answering, ask exactly one relevant open-ended question that helps understand the customer need. Do not ask yes/no questions. Do not repeat a question already asked in the conversation.',
+    'Never invent prices, discounts, certifications, legal claims, or exact timelines. For quotations, explain that the quotation will be sent by email after the team reviews the details.',
+    'For any project/RFQ/consultation request, collect these one at a time when missing: company name, contact name, phone number, email, industry, factory/project location, project type, budget, timeline, existing equipment, and whether drawings/files are available.',
+    'When enough lead information is gathered, say the sales team will contact them soon and include #ATP at the end of the project summary.',
+    'If a customer mentions drawings or files, tell them the team can receive files by email; do not claim files are stored.',
+    'Knowledge base: PK Supply Chain Co., Ltd. has more than 20 years of experience in design, manufacturing, installation, and maintenance of conveyor systems and industrial production systems.',
+    'Services: design and engineering consultation, conveyor system design, production line design, production improvement, automation consultation, manufacturing, custom machinery, installation, preventive maintenance, conveyor/machine repair, performance improvement, spare parts sourcing.',
+    'Products and solutions: Shooter System, Platform Structure, Main Hopper, Top Chain Conveyor, Press Machine & Conveyor Line, Power Roller Conveyor, Building to Building Conveyor, Belt Incline Conveyor for plastic parts, Assembly Line, Spot Welding Machine.',
+    'Conveyor experience includes Top Chain Conveyor, Roller Conveyor, Belt Conveyor, Incline Conveyor, building-to-building conveyor, and custom conveyor systems.',
+    'Company address: 22/5 Moo 10, Bueng Thong Lang, Lam Luk Ka, Pathum Thani 12150.',
+    'Contact: 02-108-2828, 083-531-0696, 086-688-9799, pongchai@pksupplychain.com.',
+    'FAQs: We provide design, manufacturing, installation, maintenance, spare parts, production-line improvement, and custom factory solutions. We can design systems specifically for each factory.',
     `If asked what model you use, say you are configured to use ${LLM_MODEL} on the server side. Never reveal API keys or private environment variables.`
   ].join('\n');
 }
@@ -243,7 +256,7 @@ async function fetchWithTimeout(url, options) {
   }
 }
 
-async function generateLLMReply(message, history) {
+async function generateLLMReply(message, history, language = 'th') {
   if (!LLM_ENABLED) return null;
 
   try {
@@ -256,7 +269,7 @@ async function generateLLMReply(message, history) {
         },
         body: JSON.stringify({
           system_instruction: {
-            parts: [{ text: buildAgentInstructions() }]
+            parts: [{ text: buildAgentInstructions(language) }]
           },
           contents: toGeminiContents(history),
           generationConfig: {
@@ -281,7 +294,7 @@ async function generateLLMReply(message, history) {
         body: JSON.stringify({
           model: LLM_MODEL,
           messages: [
-            { role: 'system', content: buildAgentInstructions() },
+            { role: 'system', content: buildAgentInstructions(language) },
             ...toOpenAIMessages(history)
           ],
           temperature: 0.4,
@@ -302,7 +315,7 @@ async function generateLLMReply(message, history) {
       },
       body: JSON.stringify({
         model: LLM_MODEL,
-        instructions: buildAgentInstructions(),
+        instructions: buildAgentInstructions(language),
         input: toOpenAIMessages(history),
         max_output_tokens: 420,
         store: false
@@ -318,11 +331,11 @@ async function generateLLMReply(message, history) {
   }
 }
 
-async function generateReply(message, history = []) {
+async function generateReply(message, history = [], language = 'th') {
   const modelInfoReply = getModelInfoReply(message);
   if (modelInfoReply) return modelInfoReply;
 
-  const llmReply = await generateLLMReply(message, history);
+  const llmReply = await generateLLMReply(message, history, language);
   if (llmReply) return llmReply;
 
   return generateRuleBasedReply(message);
