@@ -158,11 +158,13 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint not found' });
 });
 
-// Start server
-app.listen(PORT, () => {
+// Start server locally. Vercel imports the Express app as a serverless function.
+if (require.main === module) {
+  app.listen(PORT, () => {
   console.log(`🚀 Chat Widget Server running on http://localhost:${PORT}`);
   console.log(`📝 API Key: ${API_KEY}`);
   console.log(`💬 Widget available at: http://localhost:${PORT}/chat-widget.js`);
-});
+  });
+}
 
 module.exports = app;

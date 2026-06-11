@@ -2,11 +2,11 @@
   "name": "chat-widget-server",
   "version": "1.0.0",
   "description": "Backend server for embeddable chat widget",
-  "main": "server.js",
+  "main": "chat/backend/server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node chat/backend/server.js",
     "build": "echo 'No build needed'",
-    "dev": "nodemon server.js",
+    "dev": "nodemon chat/backend/server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
