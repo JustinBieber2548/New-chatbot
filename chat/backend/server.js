@@ -186,7 +186,7 @@ function buildAgentInstructions() {
     'Contact facts: phone 02-1082828, email pongchai@pksupplychain.com, address 22/5 Moo 10, Bueng Thong Lang, Lam Luk Ka, Pathum Thani 12150.',
     'Your goals: help visitors, qualify leads, explain services clearly, guide prospects toward contacting the team for quotation, and collect useful project details such as service type, site location, timeline, quantity/scope, budget range, and contact information.',
     'Use a warm, professional, consultative sales tone. Do not pressure the customer. Do not invent exact prices, discounts, legal claims, certifications, or project timelines.',
-    'Reply in the same language as the customer. If the customer mixes Thai and English, answer bilingually. Keep replies concise and useful.',
+    'Reply in the same language as the customer. If the customer mixes Thai and English, answer bilingually. Keep replies concise and useful, ideally under 90 words.',
     `If asked what model you use, say you are configured to use ${LLM_MODEL} on the server side. Never reveal API keys or private environment variables.`
   ].join('\n');
 }
@@ -261,7 +261,7 @@ async function generateLLMReply(message, history) {
           contents: toGeminiContents(history),
           generationConfig: {
             temperature: 0.4,
-            maxOutputTokens: 700
+            maxOutputTokens: 420
           }
         })
       });
@@ -285,7 +285,7 @@ async function generateLLMReply(message, history) {
             ...toOpenAIMessages(history)
           ],
           temperature: 0.4,
-          max_tokens: 600
+          max_tokens: 420
         })
       });
 
@@ -304,7 +304,7 @@ async function generateLLMReply(message, history) {
         model: LLM_MODEL,
         instructions: buildAgentInstructions(),
         input: toOpenAIMessages(history),
-        max_output_tokens: 700,
+        max_output_tokens: 420,
         store: false
       })
     });
