@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Integration Examples - Chat Widget</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f3f4f6;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: #1f2937;
+      margin-bottom: 30px;
+      font-size: 32px;
+    }
+
+    .example {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .example h2 {
+      color: #374151;
+      margin-bottom: 15px;
+      font-size: 20px;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 10px;
+    }
+
+    .example p {
+      color: #6b7280;
+      margin-bottom: 15px;
+      line-height: 1.6;
+    }
+
+    .code-block {
+      background: #1f2937;
+      color: #e5e7eb;
+      padding: 15px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      margin-bottom: 15px;
+    }
+
+    .demo-area {
+      background: #f9fafb;
+      border: 2px dashed #d1d5db;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      color: #6b7280;
+      margin: 20px 0;
+    }
+
+    .button {
+      display: inline-block;
+      background: #667eea;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      margin-right: 10px;
+      margin-bottom: 10px;
+      transition: background 0.2s;
+    }
+
+    .button:hover {
+      background: #5568d3;
+    }
+
+    .note {
+      background: #fef3c7;
+      border-left: 4px solid #fbbf24;
+      padding: 12px;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #92400e;
+      margin: 15px 0;
+    }
+
+    .success {
+      background: #d1fae5;
+      border-left-color: #10b981;
+      color: #065f46;
+    }
+
+    footer {
+      text-align: center;
+      color: #9ca3af;
+      margin-top: 50px;
+      padding: 20px 0;
+      border-top: 1px solid #e5e7eb;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📚 Integration Examples</h1>
+
+    <!-- Basic Setup -->
+    <div class="example">
+      <h2>1. Basic Setup</h2>
+      <p>Simplest way to add the chat widget to your website.</p>
+
+      <div class="code-block">&lt;!-- Add before closing &lt;/body&gt; --&gt;
+&lt;script src="http://localhost:3000/chat-widget.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  ChatWidget.init({
+    apiUrl: 'http://localhost:3000',
+    apiKey: 'test-key-123'
+  });
+&lt;/script&gt;</div>
+
+      <div class="note success">✓ This example is active on this page</div>
+    </div>
+
+    <!-- Advanced Configuration -->
+    <div class="example">
+      <h2>2. Advanced Configuration</h2>
+      <p>Customize the widget appearance and behavior.</p>
+
+      <div class="code-block">ChatWidget.init({
+  apiUrl: 'https://api.yourcompany.com',
+  apiKey: 'sk-prod-key-here',
+  title: 'Customer Support',
+  placeholder: 'Ask me anything...',
+  theme: 'light',
+  position: 'bottom-left',
+  width: '380px',
+  height: '550px'
+});</div>
+
+      <button class="button" onclick="demoAdvanced()">Try This Config</button>
+    </div>
+
+    <!-- Event Listeners -->
+    <div class="example">
+      <h2>3. Event Listeners</h2>
+      <p>Listen to chat events and react to them in your code.</p>
+
+      <div class="code-block">// Custom event handling
+window.addEventListener('chat-widget-ready', function() {
+  console.log('Widget initialized');
+});
+
+window.addEventListener('chat-widget-message', function(e) {
+  console.log('New message:', e.detail);
+  // Send to analytics
+  gtag('event', 'chat_message', {
+    session_id: ChatWidget.state.sessionId,
+    message: e.detail.text
+  });
+});</div>
+
+      <div class="note">
+        Note: You'll need to implement custom event dispatching in chat-widget.js
+      </div>
+    </div>
+
+    <!-- Dynamic Positioning -->
+    <div class="example">
+      <h2>4. Dynamic Positioning</h2>
+      <p>Change widget position based on user preference.</p>
+
+      <div class="code-block">// Bottom Right (Default)
+ChatWidget.init({
+  apiUrl: 'http://localhost:3000',
+  position: 'bottom-right'
+});
+
+// Bottom Left
+ChatWidget.init({
+  apiUrl: 'http://localhost:3000',
+  position: 'bottom-left'
+});</div>
+
+      <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <button class="button" onclick="setPosition('bottom-right')">Bottom Right</button>
+        <button class="button" onclick="setPosition('bottom-left')">Bottom Left</button>
+      </div>
+    </div>
+
+    <!-- Pre-filled Messages -->
+    <div class="example">
+      <h2>5. Pre-filled Messages</h2>
+      <p>Send initial messages programmatically.</p>
+
+      <div class="code-block">// Initialize widget
+ChatWidget.init({
+  apiUrl: 'http://localhost:3000',
+  apiKey: 'test-key-123'
+});
+
+// Open widget and send message
+setTimeout(() => {
+  ChatWidget.toggleWidget();
+  ChatWidget.sendMessage(
+    'Hi, I have a question about your pricing',
+    ChatWidget.elements.messagesContainer,
+    ChatWidget.elements.input
+  );
+}, 1000);</div>
+
+      <button class="button" onclick="sendPrefilledMessage()">Try Pre-filled Message</button>
+    </div>
+
+    <!-- Multiple Widgets -->
+    <div class="example">
+      <h2>6. Multiple Widgets (Advanced)</h2>
+      <p>Run multiple chat widgets for different services.</p>
+
+      <div class="code-block">// Support Widget
+ChatWidget.init({
+  apiUrl: 'http://localhost:3000/chat',
+  apiKey: 'support-key',
+  title: 'Support',
+  position: 'bottom-right'
+});
+
+// Sales Widget (different instance)
+// You would need to create a separate class or modify
+// the widget to support multiple instances</div>
+
+      <div class="note">
+        This requires modifying ChatWidget to support multiple instances.
+        Current version supports one widget per page.
+      </div>
+    </div>
+
+    <!-- Analytics Integration -->
+    <div class="example">
+      <h2>7. Analytics Integration</h2>
+      <p>Track chat interactions with Google Analytics or similar.</p>
+
+      <div class="code-block">// Google Analytics
+function trackChatEvent(eventName, data = {}) {
+  gtag('event', eventName, {
+    session_id: ChatWidget.state.sessionId,
+    ...data
+  });
+}
+
+// Track when widget opens
+const originalToggle = ChatWidget.toggleWidget;
+ChatWidget.toggleWidget = function() {
+  originalToggle.call(this);
+  trackChatEvent('chat_widget_opened', {
+    is_open: this.state.isOpen
+  });
+};</div>
+    </div>
+
+    <!-- Production Deployment -->
+    <div class="example">
+      <h2>8. Production Deployment</h2>
+      <p>Setup for production environment.</p>
+
+      <div class="code-block">&lt;!-- Production Setup --&gt;
+&lt;script src="https://chat-api.yourcompany.com/chat-widget.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  ChatWidget.init({
+    apiUrl: 'https://chat-api.yourcompany.com',
+    apiKey: 'pk_prod_...',  // Use environment-specific key
+    title: 'Help & Support',
+    theme: 'light'
+  });
+&lt;/script&gt;
+
+&lt;!-- Add nonce for CSP compliance --&gt;
+&lt;script nonce="..." src="..."&gt;&lt;/script&gt;</div>
+
+      <div class="note success">
+        ✓ Always use HTTPS in production<br>
+        ✓ Store API keys securely<br>
+        ✓ Implement rate limiting<br>
+        ✓ Enable CORS for your domain only
+      </div>
+    </div>
+
+    <!-- Troubleshooting -->
+    <div class="example">
+      <h2>9. Debugging & Troubleshooting</h2>
+      <p>Check widget status and debug issues.</p>
+
+      <div class="code-block">// Check if widget is loaded
+console.log('Widget available:', window.ChatWidget ? 'Yes' : 'No');
+
+// Check widget state
+console.log('Session ID:', ChatWidget.state.sessionId);
+console.log('Is open:', ChatWidget.state.isOpen);
+console.log('Messages:', ChatWidget.state.messages);
+
+// Test API connection
+fetch('http://localhost:3000/health')
+  .then(res => res.json())
+  .then(data => console.log('API Status:', data))
+  .catch(err => console.error('API Error:', err));</div>
+
+      <button class="button" onclick="debugWidget()">Run Debug Check</button>
+    </div>
+
+    <footer>
+      <p>Chat Widget Examples • Need help? Check the README.md for complete documentation</p>
+    </footer>
+  </div>
+
+  <!-- Include the chat widget -->
+  <script src="http://localhost:3000/chat-widget.js"></script>
+  <script>
+    // Initialize with basic config
+    ChatWidget.init({
+      apiUrl: 'http://localhost:3000',
+      apiKey: 'test-key-123',
+      title: 'Chat Support'
+    });
+
+    // Helper functions
+    function demoAdvanced() {
+      alert('Advanced config demo - Check browser console for current config');
+      console.log('Current ChatWidget config:', ChatWidget.config);
+    }
+
+    function setPosition(position) {
+      const container = document.getElementById('chat-widget-container');
+      if (position === 'bottom-left') {
+        container.style.left = '20px';
+        container.style.right = 'auto';
+      } else {
+        container.style.right = '20px';
+        container.style.left = 'auto';
+      }
+    }
+
+    function sendPrefilledMessage() {
+      if (!ChatWidget.state.isOpen) {
+        ChatWidget.toggleWidget();
+      }
+      ChatWidget.sendMessage(
+        '✋ Hello! I just clicked a pre-filled message button',
+        ChatWidget.elements.messagesContainer,
+        ChatWidget.elements.input
+      );
+    }
+
+    function debugWidget() {
+      console.group('🔍 Chat Widget Debug Info');
+      console.log('✓ Widget available:', window.ChatWidget ? 'Yes' : 'No');
+      console.log('✓ Session ID:', ChatWidget.state.sessionId);
+      console.log('✓ Widget open:', ChatWidget.state.isOpen);
+      console.log('✓ Messages count:', ChatWidget.state.messages.length);
+      console.log('✓ Config:', ChatWidget.config);
+      console.log('✓ Elements:', ChatWidget.elements);
+      console.groupEnd();
+
+      // Test API
+      fetch('http://localhost:3000/health')
+        .then(res => res.json())
+        .then(data => {
+          console.log('✅ API Health:', data);
+          alert('✅ All systems operational! Check console for details.');
+        })
+        .catch(err => {
+          console.error('❌ API Error:', err);
+          alert('❌ API connection failed. Is the server running?');
+        });
+    }
+  </script>
+</body>
+</html>

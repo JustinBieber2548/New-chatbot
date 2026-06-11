@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Widget Demo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 600px;
+      width: 100%;
+      padding: 40px;
+    }
+
+    h1 {
+      color: #1f2937;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+
+    .subtitle {
+      color: #6b7280;
+      margin-bottom: 30px;
+      font-size: 16px;
+    }
+
+    .section {
+      margin-bottom: 30px;
+    }
+
+    .section h2 {
+      color: #374151;
+      font-size: 18px;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section h2::before {
+      content: '▶';
+      color: #667eea;
+    }
+
+    .code-block {
+      background: #1f2937;
+      color: #e5e7eb;
+      padding: 15px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      margin-bottom: 10px;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .feature {
+      background: #f3f4f6;
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #374151;
+    }
+
+    .feature strong {
+      color: #667eea;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .button {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+    }
+
+    .button-secondary {
+      background: #e5e7eb;
+      color: #1f2937;
+    }
+
+    .button-secondary:hover {
+      background: #d1d5db;
+    }
+
+    .note {
+      background: #fef3c7;
+      border-left: 4px solid #fbbf24;
+      padding: 15px;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #92400e;
+      margin: 15px 0;
+    }
+
+    .success {
+      background: #d1fae5;
+      border-left-color: #10b981;
+      color: #065f46;
+    }
+
+    footer {
+      text-align: center;
+      color: #9ca3af;
+      font-size: 12px;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    @media (max-width: 600px) {
+      .features {
+        grid-template-columns: 1fr;
+      }
+
+      .container {
+        padding: 20px;
+      }
+
+      h1 {
+        font-size: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚀 Chat Widget Demo</h1>
+    <p class="subtitle">Embeddable chat widget for any website</p>
+
+    <!-- Features -->
+    <div class="section">
+      <h2>Features</h2>
+      <div class="features">
+        <div class="feature">
+          <strong>✨ Modern UI</strong>
+          Sleek floating widget with smooth animations
+        </div>
+        <div class="feature">
+          <strong>🔧 Easy Setup</strong>
+          Just 2 lines of code to embed
+        </div>
+        <div class="feature">
+          <strong>🌐 CORS Ready</strong>
+          Works on any domain
+        </div>
+        <div class="feature">
+          <strong>🔐 Secure</strong>
+          API key authentication included
+        </div>
+        <div class="feature">
+          <strong>📱 Mobile Friendly</strong>
+          Responsive design for all devices
+        </div>
+        <div class="feature">
+          <strong>⚡ Lightweight</strong>
+          Single JS file, ~8KB gzipped
+        </div>
+      </div>
+    </div>
+
+    <!-- Implementation -->
+    <div class="section">
+      <h2>Quick Start</h2>
+
+      <h3 style="margin-top: 15px; margin-bottom: 10px; color: #374151; font-size: 14px;">
+        Step 1: Add Script Tag
+      </h3>
+      <div class="code-block">&lt;script src="http://localhost:3000/chat-widget.js"&gt;&lt;/script&gt;</div>
+
+      <h3 style="margin-top: 15px; margin-bottom: 10px; color: #374151; font-size: 14px;">
+        Step 2: Initialize Widget
+      </h3>
+      <div class="code-block">ChatWidget.init({
+  apiUrl: 'http://localhost:3000',
+  apiKey: 'test-key-123',
+  title: 'Chat Support',
+  placeholder: 'Type a message...'
+});</div>
+
+      <div class="note success">
+        ✓ The chat widget is already active on this page! Look for the purple chat bubble in the bottom-right corner.
+      </div>
+    </div>
+
+    <!-- Configuration -->
+    <div class="section">
+      <h2>Configuration Options</h2>
+      <div class="code-block">ChatWidget.init({
+  // Required
+  apiUrl: 'https://your-server.com',
+  apiKey: 'your-secret-key',
+
+  // Optional
+  title: 'Chat Support',           // Widget title
+  placeholder: 'Type a message...',// Input placeholder
+  theme: 'light',                  // 'light' or 'dark'
+  position: 'bottom-right',        // 'bottom-right' or 'bottom-left'
+  width: '400px',                  // Widget width
+  height: '600px'                  // Widget height
+});</div>
+    </div>
+
+    <!-- Deployment -->
+    <div class="section">
+      <h2>Deployment</h2>
+
+      <h3 style="margin-top: 15px; margin-bottom: 10px; color: #374151; font-size: 14px;">
+        Backend Setup
+      </h3>
+      <div class="code-block">cd backend
+npm install
+npm start</div>
+
+      <div class="note">
+        Server runs on http://localhost:3000 by default
+      </div>
+
+      <h3 style="margin-top: 15px; margin-bottom: 10px; color: #374151; font-size: 14px;">
+        For Production
+      </h3>
+      <ul style="padding-left: 20px; margin-bottom: 10px;">
+        <li>Host backend on cloud (Heroku, AWS, DigitalOcean, etc.)</li>
+        <li>Update API_KEY in .env to something secure</li>
+        <li>Update CORS origins if needed</li>
+        <li>Point widget script to your production URL</li>
+        <li>Connect to your AI service (OpenAI, etc.)</li>
+      </ul>
+    </div>
+
+    <!-- API Endpoints -->
+    <div class="section">
+      <h2>API Endpoints</h2>
+
+      <div style="font-size: 13px; color: #374151;">
+        <div style="margin-bottom: 15px;">
+          <strong style="color: #667eea;">POST /chat</strong>
+          <div style="margin-top: 5px;">Send a message and get reply</div>
+          <div class="code-block" style="margin-top: 5px;">Body: {
+  message: "Hello",
+  sessionId: "session-123",
+  timestamp: "2024-01-01T00:00:00Z"
+}</div>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+          <strong style="color: #667eea;">GET /session/:sessionId</strong>
+          <div style="margin-top: 5px;">Get conversation history</div>
+        </div>
+
+        <div>
+          <strong style="color: #667eea;">DELETE /session/:sessionId</strong>
+          <div style="margin-top: 5px;">Clear a conversation</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+      Chat Widget v1.0.0 • Made with ❤️
+    </footer>
+  </div>
+
+  <!-- Include the chat widget -->
+  <script src="http://localhost:3000/chat-widget.js"></script>
+  <script>
+    // Initialize the widget
+    ChatWidget.init({
+      apiUrl: 'http://localhost:3000',
+      apiKey: 'test-key-123',
+      title: 'Chat Support',
+      placeholder: 'Type a message...'
+    });
+  </script>
+</body>
+</html>
