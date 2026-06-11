@@ -14,10 +14,11 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.API_KEY || 'test-key-123';
-const LLM_API_KEY = process.env.OPENAI_API_KEY || process.env.LLM_API_KEY || '';
-const LLM_MODEL = process.env.OPENAI_MODEL || process.env.LLM_MODEL || 'gpt-5.4-mini';
+const LLM_PROVIDER = (process.env.LLM_PROVIDER || 'gemini').toLowerCase();
+const LLM_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.OPENAI_API_KEY || process.env.LLM_API_KEY || '';
+const LLM_MODEL = process.env.GEMINI_MODEL || process.env.OPENAI_MODEL || process.env.LLM_MODEL || 'gemini-3.5-flash';
 const LLM_BASE_URL = (process.env.OPENAI_BASE_URL || process.env.LLM_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
-const LLM_API_STYLE = (process.env.LLM_API_STYLE || 'responses').toLowerCase();
+const LLM_API_STYLE = (process.env.LLM_API_STYLE || (LLM_PROVIDER === 'gemini' ? 'gemini' : 'responses')).toLowerCase();
 const LLM_ENABLED = process.env.USE_LLM !== 'false' && Boolean(LLM_API_KEY);
 
 // Middleware
@@ -150,8 +151,8 @@ function getModelInfoReply(message) {
 
   return formatBilingualReply(
     message,
-    `ตอนนี้ระบบยังไม่ได้เปิดใช้ LLM เพราะยังไม่มี OPENAI_API_KEY หรือ LLM_API_KEY ใน Vercel ครับ เมื่อตั้งค่าแล้ว Agent จะใช้โมเดล ${LLM_MODEL}`,
-    `The LLM is not active yet because OPENAI_API_KEY or LLM_API_KEY is not set in Vercel. Once configured, the agent will use ${LLM_MODEL}.`
+    `ตอนนี้ระบบยังไม่ได้เปิดใช้ LLM เพราะยังไม่มี GEMINI_API_KEY หรือ LLM_API_KEY ใน Vercel ครับ เมื่อตั้งค่าแล้ว Agent จะใช้โมเดล ${LLM_MODEL}`,
+    `The LLM is not active yet because GEMINI_API_KEY or LLM_API_KEY is not set in Vercel. Once configured, the agent will use ${LLM_MODEL}.`
   );
 }
 
@@ -174,6 +175,13 @@ function toOpenAIMessages(history) {
   }));
 }
 
+function toGeminiContents(history) {
+  return history.slice(-10).map(item => ({
+    role: item.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: item.message }]
+  }));
+}
+
 function extractResponseText(data) {
   if (typeof data.output_text === 'string' && data.output_text.trim()) {
     return data.output_text.trim();
@@ -189,10 +197,43 @@ function extractResponseText(data) {
   return parts.join('\n').trim();
 }
 
+function extractGeminiText(data) {
+  return (data.candidates || [])
+    .flatMap(candidate => candidate.content?.parts || [])
+    .map(part => part.text || '')
+    .filter(Boolean)
+    .join('\n')
+    .trim();
+}
+
 async function generateLLMReply(message, history) {
   if (!LLM_ENABLED) return null;
 
   try {
+    if (LLM_API_STYLE === 'gemini') {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(LLM_MODEL)}:generateContent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': LLM_API_KEY
+        },
+        body: JSON.stringify({
+          system_instruction: {
+            parts: [{ text: buildAgentInstructions() }]
+          },
+          contents: toGeminiContents(history),
+          generationConfig: {
+            temperature: 0.4,
+            maxOutputTokens: 700
+          }
+        })
+      });
+
+      if (!response.ok) throw new Error(`Gemini request failed: ${response.status}`);
+      const data = await response.json();
+      return extractGeminiText(data) || null;
+    }
+
     if (LLM_API_STYLE === 'chat') {
       const response = await fetch(`${LLM_BASE_URL}/chat/completions`, {
         method: 'POST',
