@@ -72,6 +72,7 @@ const mailUsage = {
   dateKey: getBangkokDateKey(),
   count: 0
 };
+const quotationStates = new Map();
 let mailTransporter = null;
 
 // API Key verification middleware
@@ -119,7 +120,7 @@ app.post('/chat', verifyApiKey, verifyDomain, async (req, res) => {
       timestamp: new Date()
     });
 
-    const reply = await generateReply(message, conv, language);
+    const reply = await generateReply(message, conv, language, sessionId);
 
     // Store reply
     conv.push({
@@ -663,13 +664,13 @@ async function generateLLMReply(message, history, language = 'th') {
   }
 }
 
-async function generateReply(message, history = [], language = 'th') {
+async function generateReply(message, history = [], language = 'th', sessionId = '') {
+  if (shouldUseQuotationFlow(message, history)) {
+    return buildQuotationFlowReply(message, history, language, sessionId);
+  }
+
   const modelInfoReply = getModelInfoReply(message, language);
   if (modelInfoReply) return modelInfoReply;
-
-  if (shouldUseQuotationFlow(message, history)) {
-    return buildQuotationStepReply(message, history, language);
-  }
 
   const llmReply = await generateLLMReply(message, history, language);
   const cleanLLMReply = sanitizeLLMReply(llmReply);
@@ -682,6 +683,67 @@ function isQuotationIntent(text) {
   return /price|cost|quote|fee|quotation|rfq|ราคา|ใบเสนอราคา|เสนอราคา|ค่าใช้จ่าย|ประเมินราคา/i.test(text);
 }
 
+const QUOTATION_FIELDS = [
+  {
+    key: 'companyName',
+    markers: ['ชื่อบริษัท', 'company name'],
+    th: 'สำหรับใบเสนอราคา เราจะให้ทีมฝ่ายขายประเมินตามรายละเอียดโครงการครับ ขอทราบชื่อบริษัทของโครงการนี้ก่อนครับ/คะ',
+    en: 'For a quotation, our sales team will estimate based on the project details. What is the company name for this project?',
+    label: 'Company name',
+    maxLength: 180
+  },
+  {
+    key: 'contactName',
+    markers: ['ชื่อผู้ติดต่อ', 'contact name'],
+    th: 'ขอบคุณครับ/ค่ะ ขอทราบชื่อผู้ติดต่อสำหรับโครงการนี้ครับ/คะ',
+    en: 'Thank you. What is the contact name for this project?',
+    label: 'Contact name',
+    maxLength: 180
+  },
+  {
+    key: 'phone',
+    markers: ['เบอร์โทรศัพท์ที่ทีมฝ่ายขาย', 'phone number can our sales team'],
+    th: 'ขอทราบเบอร์โทรศัพท์ที่ทีมฝ่ายขายสามารถติดต่อกลับได้ครับ/คะ',
+    en: 'What phone number can our sales team use to contact you?',
+    label: 'Phone',
+    maxLength: 120
+  },
+  {
+    key: 'email',
+    markers: ['อีเมลสำหรับส่งข้อมูลโครงการ', 'email should we use', 'email address for the project details'],
+    th: 'ขอทราบอีเมลสำหรับส่งข้อมูลโครงการและใบเสนอราคาครับ/คะ',
+    en: 'What email should we use for project details and the quotation?',
+    invalidTh: 'กรุณาพิมพ์อีเมลสำหรับส่งข้อมูลโครงการให้ถูกต้องครับ/ค่ะ',
+    invalidEn: 'Please enter a valid email address for the project details and quotation.',
+    label: 'Email',
+    maxLength: 180
+  },
+  {
+    key: 'projectType',
+    markers: ['ประเภทโครงการ', 'project type'],
+    th: 'โครงการนี้เป็นงานประเภทไหน เช่น ระบบลำเลียง ออกแบบไลน์ผลิต ติดตั้ง หรือซ่อมบำรุงครับ/คะ',
+    en: 'What type of project is this, such as conveyor system, production-line design, installation, or maintenance?',
+    label: 'Project type',
+    maxLength: 500
+  },
+  {
+    key: 'installationLocation',
+    markers: ['สถานที่ติดตั้ง', 'installation location'],
+    th: 'สถานที่ติดตั้งของโครงการอยู่ที่จังหวัดหรือพื้นที่ใดครับ/คะ',
+    en: 'Where is the installation location for this project?',
+    label: 'Installation location',
+    maxLength: 500
+  },
+  {
+    key: 'projectTimeline',
+    markers: ['ระยะเวลาดำเนินโครงการ', 'project timeline'],
+    th: 'ต้องการให้โครงการเริ่มหรือใช้งานได้ในช่วงเวลาใดครับ/คะ',
+    en: 'What project timeline or target start date should our team consider?',
+    label: 'Project timeline',
+    maxLength: 500
+  }
+];
+
 function getAssistantText(history = []) {
   return history
     .filter(item => item.role === 'assistant')
@@ -691,65 +753,197 @@ function getAssistantText(history = []) {
 }
 
 function hasQuotationFlowStarted(history = []) {
-  return /ชื่อบริษัท|company name|ชื่อผู้ติดต่อ|contact name|เบอร์โทรศัพท์ที่ทีมฝ่ายขาย|phone number can our sales team|อีเมลสำหรับส่งข้อมูลโครงการ|email should we use|ประเภทโครงการ|project type|สถานที่ติดตั้ง|installation location|ระยะเวลาดำเนินโครงการ|project timeline/.test(getAssistantText(history));
+  const assistantText = getAssistantText(history);
+  return QUOTATION_FIELDS.some(field => field.markers.some(marker => assistantText.includes(marker)));
 }
 
 function shouldUseQuotationFlow(message, history = []) {
   return isQuotationIntent(message) || hasQuotationFlowStarted(history);
 }
 
-function buildQuotationStepReply(message, history = [], language = 'th') {
-  const assistantText = getAssistantText(history);
+function getQuotationState(sessionId) {
+  const key = sessionId || 'default';
+  if (!quotationStates.has(key)) {
+    quotationStates.set(key, {
+      data: {},
+      emailSent: false,
+      emailMessageId: '',
+      invalidEmail: false
+    });
+  }
 
-  const steps = [
-    {
-      markers: ['ชื่อบริษัท', 'company name'],
-      th: 'สำหรับใบเสนอราคา เราจะให้ทีมฝ่ายขายประเมินตามรายละเอียดโครงการครับ ขอทราบชื่อบริษัทของโครงการนี้ก่อนครับ/คะ',
-      en: 'For a quotation, our sales team will estimate based on the project details. What is the company name for this project?'
-    },
-    {
-      markers: ['ชื่อผู้ติดต่อ', 'contact name'],
-      th: 'ขอบคุณครับ/ค่ะ ขอทราบชื่อผู้ติดต่อสำหรับโครงการนี้ครับ/คะ',
-      en: 'Thank you. What is the contact name for this project?'
-    },
-    {
-      markers: ['เบอร์โทรศัพท์ที่ทีมฝ่ายขาย', 'phone number can our sales team'],
-      th: 'ขอทราบเบอร์โทรศัพท์ที่ทีมฝ่ายขายสามารถติดต่อกลับได้ครับ/คะ',
-      en: 'What phone number can our sales team use to contact you?'
-    },
-    {
-      markers: ['อีเมลสำหรับส่งข้อมูลโครงการ', 'email should we use'],
-      th: 'ขอทราบอีเมลสำหรับส่งข้อมูลโครงการและใบเสนอราคาครับ/คะ',
-      en: 'What email should we use for project details and the quotation?'
-    },
-    {
-      markers: ['ประเภทโครงการ', 'project type'],
-      th: 'โครงการนี้เป็นงานประเภทไหน เช่น ระบบลำเลียง ออกแบบไลน์ผลิต ติดตั้ง หรือซ่อมบำรุงครับ/คะ',
-      en: 'What type of project is this, such as conveyor system, production-line design, installation, or maintenance?'
-    },
-    {
-      markers: ['สถานที่ติดตั้ง', 'installation location'],
-      th: 'สถานที่ติดตั้งของโครงการอยู่ที่จังหวัดหรือพื้นที่ใดครับ/คะ',
-      en: 'Where is the installation location for this project?'
-    },
-    {
-      markers: ['ระยะเวลาดำเนินโครงการ', 'project timeline'],
-      th: 'ต้องการให้โครงการเริ่มหรือใช้งานได้ในช่วงเวลาใดครับ/คะ',
-      en: 'What project timeline or target start date should our team consider?'
+  return quotationStates.get(key);
+}
+
+function extractEmail(text) {
+  const match = String(text || '').match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  return match ? normalizeText(match[0], 180) : '';
+}
+
+function getRequestedQuotationField(text = '') {
+  const lowerText = String(text).toLowerCase();
+  return QUOTATION_FIELDS.find(field => field.markers.some(marker => lowerText.includes(marker)));
+}
+
+function getPreviousAssistantMessage(history, index) {
+  for (let i = index - 1; i >= 0; i -= 1) {
+    if (history[i]?.role === 'assistant') return history[i].message || '';
+  }
+
+  return '';
+}
+
+function captureQuotationValue(state, field, value) {
+  const cleanValue = normalizeLongText(value, field.maxLength || 500);
+  if (!cleanValue) return;
+
+  if (field.key === 'email') {
+    const email = extractEmail(cleanValue);
+    if (!email || !isValidEmail(email)) {
+      state.invalidEmail = true;
+      return;
     }
-  ];
 
-  const nextStep = steps.find(step => !step.markers.some(marker => assistantText.includes(marker)));
-  if (!nextStep) {
+    state.data.email = email;
+    state.invalidEmail = false;
+    return;
+  }
+
+  state.data[field.key] = cleanValue;
+}
+
+function updateQuotationStateFromHistory(sessionId, history = []) {
+  const state = getQuotationState(sessionId);
+
+  for (let i = 0; i < history.length; i += 1) {
+    if (history[i]?.role !== 'user') continue;
+
+    const previousAssistant = getPreviousAssistantMessage(history, i);
+    const requestedField = getRequestedQuotationField(previousAssistant);
+    if (requestedField && !state.data[requestedField.key]) {
+      captureQuotationValue(state, requestedField, history[i].message);
+    }
+  }
+
+  return state;
+}
+
+function getNextQuotationField(state) {
+  return QUOTATION_FIELDS.find(field => !state.data[field.key]);
+}
+
+function buildQuotationLeadMessage(data) {
+  return [
+    'Quotation request completed in chatbot',
+    '',
+    `Company name: ${data.companyName || '-'}`,
+    `Contact name: ${data.contactName || '-'}`,
+    `Phone: ${data.phone || '-'}`,
+    `Email: ${data.email || '-'}`,
+    `Project type: ${data.projectType || '-'}`,
+    `Installation location: ${data.installationLocation || '-'}`,
+    `Project timeline: ${data.projectTimeline || '-'}`
+  ].join('\n');
+}
+
+async function sendQuotationLeadEmail(state, sessionId, language) {
+  if (state.emailSent) {
+    return {
+      success: true,
+      alreadySent: true,
+      messageId: state.emailMessageId,
+      limit: state.mailLimit || getMailLimitInfo()
+    };
+  }
+
+  if (!SMTP_PASS) {
+    return { success: false, code: 'mail_not_configured' };
+  }
+
+  try {
+    resetMailUsageIfNeeded();
+    if (mailUsage.count >= MAIL_DAILY_LIMIT) {
+      return { success: false, code: 'send_limit_full', limit: getMailLimitInfo() };
+    }
+
+    const data = state.data;
+    const mail = buildLeadMail({
+      name: data.contactName || data.companyName,
+      email: data.email,
+      phone: data.phone,
+      message: buildQuotationLeadMessage(data),
+      sessionId,
+      language,
+      attachment: null
+    });
+
+    const info = await getMailTransporter().sendMail(mail);
+    recordMailSend();
+
+    const limit = getMailLimitInfo();
+    state.emailSent = true;
+    state.emailMessageId = info.messageId;
+    state.mailLimit = limit;
+
+    return { success: true, messageId: info.messageId, limit };
+  } catch (error) {
+    console.error('Quotation lead mail error:', error.message);
+    return { success: false, code: 'mail_send_failed' };
+  }
+}
+
+function buildQuotationFinishedReply(message, language, sendResult) {
+  if (sendResult.success) {
+    const nearLimitThai = sendResult.limit?.almostFull ? ' หมายเหตุ: ระบบส่งอีเมลวันนี้ใกล้ถึงขีดจำกัดแล้วครับ/ค่ะ' : '';
+    const nearLimitEn = sendResult.limit?.almostFull ? ' Note: today\'s email sending limit is almost full.' : '';
     return formatLanguageReply(
       message,
       language,
-      'เราได้รับรายละเอียดหลักสำหรับการขอใบเสนอราคาแล้วครับ ทีมฝ่ายขายจะติดต่อกลับโดยเร็วที่สุด #ATP',
-      'We have the main quotation details. Our sales team will contact you soon. #ATP'
+      `ขอบคุณครับ/ค่ะ เราได้รับข้อมูลครบถ้วนและส่งรายละเอียดให้ทีมฝ่ายขายเรียบร้อยแล้ว ทีมฝ่ายขายจะติดต่อกลับโดยเร็วที่สุด #ATP${nearLimitThai}`,
+      `Thank you. We have received all required details and sent them to our sales team. The sales team will contact you soon. #ATP${nearLimitEn}`
     );
   }
 
-  return formatLanguageReply(message, language, nextStep.th, nextStep.en);
+  if (sendResult.code === 'mail_not_configured') {
+    return formatLanguageReply(
+      message,
+      language,
+      'เราได้รับข้อมูลครบถ้วนแล้ว แต่ระบบส่งอีเมลยังไม่ได้ตั้งค่า กรุณาติดต่อทีมงานโดยตรงที่ pongchai@pksupplychain.com หรือ 02-108-2828 ครับ/ค่ะ #ATP',
+      'We have received all required details, but email sending is not configured. Please contact the team directly at pongchai@pksupplychain.com or 02-108-2828. #ATP'
+    );
+  }
+
+  if (sendResult.code === 'send_limit_full') {
+    return formatLanguageReply(
+      message,
+      language,
+      'เราได้รับข้อมูลครบถ้วนแล้ว แต่วันนี้ระบบส่งอีเมลถึงขีดจำกัดแล้ว กรุณาติดต่อทีมงานโดยตรงที่ pongchai@pksupplychain.com หรือ 02-108-2828 ครับ/ค่ะ #ATP',
+      'We have received all required details, but today\'s email sending limit is full. Please contact the team directly at pongchai@pksupplychain.com or 02-108-2828. #ATP'
+    );
+  }
+
+  return formatLanguageReply(
+    message,
+    language,
+    'เราได้รับข้อมูลครบถ้วนแล้ว แต่ตอนนี้ส่งอีเมลไม่ได้ กรุณาติดต่อทีมงานโดยตรงที่ pongchai@pksupplychain.com หรือ 02-108-2828 ครับ/ค่ะ #ATP',
+    'We have received all required details, but we could not send the email right now. Please contact the team directly at pongchai@pksupplychain.com or 02-108-2828. #ATP'
+  );
+}
+
+async function buildQuotationFlowReply(message, history = [], language = 'th', sessionId = '') {
+  const state = updateQuotationStateFromHistory(sessionId, history);
+  const nextField = getNextQuotationField(state);
+
+  if (nextField) {
+    if (nextField.key === 'email' && state.invalidEmail) {
+      return formatLanguageReply(message, language, nextField.invalidTh, nextField.invalidEn);
+    }
+
+    return formatLanguageReply(message, language, nextField.th, nextField.en);
+  }
+
+  const sendResult = await sendQuotationLeadEmail(state, sessionId, language);
+  return buildQuotationFinishedReply(message, language, sendResult);
 }
 
 function generateRuleBasedReply(message, history = [], language = 'th') {
