@@ -157,23 +157,30 @@ function formatBilingualReply(message, thaiText, englishText) {
     : `${englishText}\n\nภาษาไทย: ${thaiText}`;
 }
 
+function formatLanguageReply(message, language, thaiText, englishText) {
+  const selectedLanguage = ['th', 'en'].includes(language) ? language : detectLanguage(message);
+  return selectedLanguage === 'th' ? thaiText : englishText;
+}
+
 function isModelQuestion(message) {
   return /\b(model|llm|gpt|gemini|ai model|ai)\b|what are you|ใช้โมเดล|โมเดล|เอไอ/i.test(message);
 }
 
-function getModelInfoReply(message) {
+function getModelInfoReply(message, language) {
   if (!isModelQuestion(message)) return null;
 
   if (LLM_ENABLED) {
-    return formatBilingualReply(
+    return formatLanguageReply(
       message,
+      language,
       `ตอนนี้ผมเป็น AI Agent สำหรับฝ่ายขายและซัพพอร์ตของ PK Supply Chain โดยตั้งค่าให้ใช้โมเดล ${LLM_MODEL} บนฝั่งเซิร์ฟเวอร์ครับ`,
       `I am currently configured as a PK Supply Chain sales and support AI agent using ${LLM_MODEL} on the server side.`
     );
   }
 
-  return formatBilingualReply(
+  return formatLanguageReply(
     message,
+    language,
     `ตอนนี้ระบบยังไม่ได้เปิดใช้ LLM เพราะยังไม่มี GEMINI_API_KEY หรือ LLM_API_KEY ใน Vercel ครับ เมื่อตั้งค่าแล้ว Agent จะใช้โมเดล ${LLM_MODEL}`,
     `The LLM is not active yet because GEMINI_API_KEY or LLM_API_KEY is not set in Vercel. Once configured, the agent will use ${LLM_MODEL}.`
   );
@@ -187,7 +194,8 @@ function buildAgentInstructions(language = 'th') {
     `Current selected chat language is ${languageName}. Reply in ${languageName} unless the visitor clearly asks to switch language.`,
     'Use "เรา" in Thai, and "we" in English. Do not use first-person singular.',
     'Answer from the knowledge base below only. If the answer is not available, politely say the support team will contact the customer with more information.',
-    'Keep replies concise, clear, professional, and natural, ideally under 90 words.',
+    'Keep replies concise, clear, professional, and natural. Use 2-4 short sentences.',
+    'Return only the final customer-facing answer. Do not include analysis, drafts, internal checks, word counts, or notes about the prompt.',
     'After answering, ask exactly one relevant open-ended question that helps understand the customer need. Do not ask yes/no questions. Do not repeat a question already asked in the conversation.',
     'Never invent prices, discounts, certifications, legal claims, or exact timelines. For quotations, explain that the quotation will be sent by email after the team reviews the details.',
     'For any project/RFQ/consultation request, collect these one at a time when missing: company name, contact name, phone number, email, industry, factory/project location, project type, budget, timeline, existing equipment, and whether drawings/files are available.',
@@ -242,6 +250,25 @@ function extractGeminiText(data) {
     .trim();
 }
 
+function sanitizeLLMReply(reply) {
+  if (!reply || typeof reply !== 'string') return null;
+
+  const cleaned = reply
+    .replace(/^answer:\s*/i, '')
+    .trim();
+
+  if (!cleaned || cleaned.length < 24) return null;
+
+  const internalPattern = /count check|word count|draft|perfect\s*\(|under\s+\d+\s+words?|internal check|prompt/i;
+  if (internalPattern.test(cleaned)) return null;
+
+  const sentenceLike = /[.!?。！？ครับค่ะ]$/.test(cleaned);
+  const looksCutOff = cleaned.length < 180 && !sentenceLike;
+  if (looksCutOff) return null;
+
+  return cleaned.slice(0, 1400);
+}
+
 async function fetchWithTimeout(url, options) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
@@ -274,7 +301,8 @@ async function generateLLMReply(message, history, language = 'th') {
           contents: toGeminiContents(history),
           generationConfig: {
             temperature: 0.4,
-            maxOutputTokens: 420
+            candidateCount: 1,
+            maxOutputTokens: 700
           }
         })
       });
@@ -298,7 +326,7 @@ async function generateLLMReply(message, history, language = 'th') {
             ...toOpenAIMessages(history)
           ],
           temperature: 0.4,
-          max_tokens: 420
+          max_tokens: 700
         })
       });
 
@@ -317,7 +345,7 @@ async function generateLLMReply(message, history, language = 'th') {
         model: LLM_MODEL,
         instructions: buildAgentInstructions(language),
         input: toOpenAIMessages(history),
-        max_output_tokens: 420,
+        max_output_tokens: 700,
         store: false
       })
     });
@@ -332,21 +360,23 @@ async function generateLLMReply(message, history, language = 'th') {
 }
 
 async function generateReply(message, history = [], language = 'th') {
-  const modelInfoReply = getModelInfoReply(message);
+  const modelInfoReply = getModelInfoReply(message, language);
   if (modelInfoReply) return modelInfoReply;
 
   const llmReply = await generateLLMReply(message, history, language);
-  if (llmReply) return llmReply;
+  const cleanLLMReply = sanitizeLLMReply(llmReply);
+  if (cleanLLMReply) return cleanLLMReply;
 
-  return generateRuleBasedReply(message);
+  return generateRuleBasedReply(message, language);
 }
 
-function generateRuleBasedReply(message) {
+function generateRuleBasedReply(message, language = 'th') {
   const msg = message.toLowerCase();
 
   if (/\b(model|llm|gpt|gemini|ai model|ai)\b|what are you|ใช้โมเดล|โมเดล|เอไอ/i.test(message)) {
-    return formatBilingualReply(
+    return formatLanguageReply(
       message,
+      language,
       'ตอนนี้แชทบอทนี้ยังไม่ได้ใช้ LLM เช่น GPT-OSS 120B หรือ Gemini 3 Flash ครับ เป็นระบบตอบกลับตามกฎที่ตั้งไว้สำหรับข้อมูลของ PK Supply Chain หากต้องการ ผมสามารถเชื่อมต่อ LLM ให้เป็น AI Agent ได้ในขั้นถัดไป',
       'This chatbot is not currently using an LLM such as GPT-OSS 120B or Gemini 3 Flash. It is a rule-based PK Supply Chain assistant. If needed, it can be upgraded next to use an LLM as a real AI agent.'
     );
@@ -402,11 +432,12 @@ function generateRuleBasedReply(message) {
 
   const matchedReply = replies.find(reply => reply.keywords.test(msg));
   if (matchedReply) {
-    return formatBilingualReply(message, matchedReply.th, matchedReply.en);
+    return formatLanguageReply(message, language, matchedReply.th, matchedReply.en);
   }
 
-  return formatBilingualReply(
+  return formatLanguageReply(
     message,
+    language,
     'ขอบคุณสำหรับคำถามครับ กรุณาฝากรายละเอียดเพิ่มเติม หรือ ติดต่อทีมงานที่ pongchai@pksupplychain.com โทร 02-1082828',
     'Thank you for your inquiry. Please share more details, or contact our team at pongchai@pksupplychain.com or 02-1082828.'
   );
