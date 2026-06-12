@@ -1,15 +1,32 @@
 {
   "version": 2,
+  "outputDirectory": "chat/widget",
   "builds": [
     {
       "src": "chat/backend/server.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "chat/widget/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
     {
-      "src": "/(.*)",
+      "src": "/chat",
       "dest": "chat/backend/server.js"
+    },
+    {
+      "src": "/session/(.*)",
+      "dest": "chat/backend/server.js"
+    },
+    {
+      "src": "/health",
+      "dest": "chat/backend/server.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "chat/widget/$1"
     }
   ]
 }
