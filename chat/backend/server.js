@@ -7,6 +7,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const nodemailer = require('nodemailer');
 const path = require('path');
 
 dotenv.config();
@@ -25,6 +26,16 @@ const LLM_BASE_URL = (process.env.OPENAI_BASE_URL || process.env.LLM_BASE_URL ||
 const LLM_API_STYLE = (process.env.LLM_API_STYLE || (LLM_PROVIDER === 'gemini' ? 'gemini' : 'responses')).toLowerCase();
 const LLM_ENABLED = process.env.USE_LLM !== 'false' && Boolean(LLM_API_KEY);
 const LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS || 6500);
+const SMTP_HOST = process.env.SMTP_HOST || 'sv-mail4.hostsevenplus.com';
+const SMTP_PORT = Number(process.env.SMTP_PORT || 465);
+const SMTP_SECURE = process.env.SMTP_SECURE ? process.env.SMTP_SECURE !== 'false' : SMTP_PORT === 465;
+const SMTP_USER = process.env.SMTP_USER || 'clients@pksupplychain.com';
+const SMTP_PASS = process.env.SMTP_PASS || '';
+const MAIL_FROM = process.env.MAIL_FROM || `PK Supply Chain <${SMTP_USER}>`;
+const LEAD_TO_EMAIL = process.env.LEAD_TO_EMAIL || 'pongchai@pksupplychain.com';
+const MAIL_DAILY_LIMIT = Number(process.env.MAIL_DAILY_LIMIT || 2000);
+const MAIL_WARN_THRESHOLD = Number(process.env.MAIL_WARN_THRESHOLD || Math.floor(MAIL_DAILY_LIMIT * 0.9));
+const MAX_LEAD_IMAGE_BYTES = Number(process.env.MAX_LEAD_IMAGE_BYTES || 3 * 1024 * 1024);
 
 const corsOptions = {
   origin(origin, callback) {
@@ -50,13 +61,18 @@ const corsOptions = {
 // Middleware
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
-app.use(express.json());
+app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '8mb' }));
 
 // Serve chat widget
 app.use(express.static(path.join(__dirname, '../widget')));
 
 // Store conversations (in production, use database)
 const conversations = new Map();
+const mailUsage = {
+  dateKey: getBangkokDateKey(),
+  count: 0
+};
+let mailTransporter = null;
 
 // API Key verification middleware
 const verifyApiKey = (req, res, next) => {
@@ -120,6 +136,96 @@ app.post('/chat', verifyApiKey, verifyDomain, async (req, res) => {
 });
 
 /**
+ * POST /lead
+ * Send visitor contact details to PK Supply Chain.
+ * Body: { name, email, message, sessionId, language, image?: { name, type, dataUrl } }
+ */
+app.post('/lead', verifyApiKey, verifyDomain, async (req, res) => {
+  const { name, email, message = '', sessionId = '', language = 'th', image = null } = req.body;
+  const cleanName = normalizeText(name, 120);
+  const cleanEmail = normalizeText(email, 180);
+  const cleanMessage = normalizeLongText(message, 1600);
+
+  if (!cleanName || !isValidEmail(cleanEmail)) {
+    return res.status(400).json({
+      success: false,
+      code: 'invalid_lead',
+      message: language === 'en' ? 'Please enter a valid name and email.' : 'กรุณากรอกชื่อและอีเมลให้ถูกต้องครับ'
+    });
+  }
+
+  if (!SMTP_PASS) {
+    return res.status(503).json({
+      success: false,
+      code: 'mail_not_configured',
+      message: language === 'en'
+        ? 'Email sending is not configured yet. Please contact the team directly.'
+        : 'ระบบส่งอีเมลยังไม่ได้ตั้งค่า กรุณาติดต่อทีมงานโดยตรงครับ'
+    });
+  }
+
+  try {
+    resetMailUsageIfNeeded();
+    if (mailUsage.count >= MAIL_DAILY_LIMIT) {
+      return res.status(429).json({
+        success: false,
+        code: 'send_limit_full',
+        message: language === 'en'
+          ? 'Email sending limit is full for today. Please contact the team directly.'
+          : 'วันนี้ระบบส่งอีเมลถึงขีดจำกัดแล้ว กรุณาติดต่อทีมงานโดยตรงครับ',
+        limit: getMailLimitInfo()
+      });
+    }
+
+    const attachment = parseLeadImage(image);
+    const mail = buildLeadMail({
+      name: cleanName,
+      email: cleanEmail,
+      message: cleanMessage,
+      sessionId,
+      language,
+      attachment
+    });
+
+    const info = await getMailTransporter().sendMail(mail);
+    recordMailSend();
+
+    const limit = getMailLimitInfo();
+    res.json({
+      success: true,
+      messageId: info.messageId,
+      message: limit.almostFull
+        ? (language === 'en'
+          ? 'Your information was sent, but the email sending limit is almost full today.'
+          : 'ส่งข้อมูลแล้วครับ แต่วันนี้ระบบส่งอีเมลใกล้ถึงขีดจำกัดแล้ว')
+        : (language === 'en'
+          ? 'Your information was sent successfully. Our team will contact you soon.'
+          : 'ส่งข้อมูลเรียบร้อยครับ ทีมงานจะติดต่อกลับโดยเร็ว'),
+      limit
+    });
+  } catch (error) {
+    console.error('Lead mail error:', error.message);
+    if (error.statusCode === 400 || error.statusCode === 413) {
+      return res.status(error.statusCode).json({
+        success: false,
+        code: 'invalid_image',
+        message: language === 'en'
+          ? 'Please upload a PNG, JPG, WebP, or GIF image under 3 MB.'
+          : 'กรุณาอัปโหลดรูป PNG, JPG, WebP หรือ GIF ขนาดไม่เกิน 3 MB ครับ'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      code: 'mail_send_failed',
+      message: language === 'en'
+        ? 'We could not send the email right now. Please try again or contact the team directly.'
+        : 'ตอนนี้ส่งอีเมลไม่ได้ กรุณาลองอีกครั้งหรือติดต่อทีมงานโดยตรงครับ'
+    });
+  }
+});
+
+/**
  * GET /session/:sessionId
  * Get conversation history
  */
@@ -146,6 +252,172 @@ app.delete('/session/:sessionId', verifyApiKey, (req, res) => {
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date() });
 });
+
+function getBangkokDateKey() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(new Date());
+}
+
+function resetMailUsageIfNeeded() {
+  const dateKey = getBangkokDateKey();
+  if (mailUsage.dateKey !== dateKey) {
+    mailUsage.dateKey = dateKey;
+    mailUsage.count = 0;
+  }
+}
+
+function recordMailSend() {
+  resetMailUsageIfNeeded();
+  mailUsage.count += 1;
+}
+
+function getMailLimitInfo() {
+  resetMailUsageIfNeeded();
+  return {
+    dateKey: mailUsage.dateKey,
+    sent: mailUsage.count,
+    limit: MAIL_DAILY_LIMIT,
+    remaining: Math.max(MAIL_DAILY_LIMIT - mailUsage.count, 0),
+    almostFull: mailUsage.count >= MAIL_WARN_THRESHOLD
+  };
+}
+
+function normalizeText(value, maxLength) {
+  return String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLength);
+}
+
+function normalizeLongText(value, maxLength) {
+  return String(value || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\n{4,}/g, '\n\n\n')
+    .trim()
+    .slice(0, maxLength);
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function parseLeadImage(image) {
+  if (!image || !image.dataUrl) return null;
+
+  const allowedTypes = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
+  const type = normalizeText(image.type, 80);
+  if (!allowedTypes.has(type)) {
+    const error = new Error('Unsupported image type');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const match = String(image.dataUrl).match(/^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/=]+)$/);
+  if (!match || match[1] !== type) {
+    const error = new Error('Invalid image data');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const content = Buffer.from(match[2], 'base64');
+  if (!content.length || content.length > MAX_LEAD_IMAGE_BYTES) {
+    const error = new Error('Image is too large');
+    error.statusCode = 413;
+    throw error;
+  }
+
+  const extension = type.split('/')[1].replace('jpeg', 'jpg');
+  const safeName = normalizeText(image.name, 100)
+    .replace(/[^a-z0-9._-]/gi, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '') || `lead-image.${extension}`;
+
+  return {
+    filename: safeName.includes('.') ? safeName : `${safeName}.${extension}`,
+    content,
+    contentType: type
+  };
+}
+
+function getMailTransporter() {
+  if (!mailTransporter) {
+    mailTransporter = nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_SECURE,
+      auth: {
+        user: SMTP_USER,
+        pass: SMTP_PASS
+      }
+    });
+  }
+
+  return mailTransporter;
+}
+
+function buildLeadMail({ name, email, message, sessionId, language, attachment }) {
+  const submittedAt = new Date().toLocaleString('en-GB', {
+    timeZone: 'Asia/Bangkok',
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  });
+
+  const safeMessage = normalizeLongText(message, 1600);
+  const lines = [
+    `New PK Supply Chain website lead`,
+    ``,
+    `Name: ${name}`,
+    `Email: ${email}`,
+    `Language: ${language === 'en' ? 'English' : 'Thai'}`,
+    `Submitted: ${submittedAt} Bangkok time`,
+    `Session: ${sessionId || '-'}`,
+    ``,
+    `Message:`,
+    safeMessage || '-',
+    ``,
+    attachment ? `Attachment: ${attachment.filename}` : `Attachment: none`
+  ];
+
+  const htmlMessage = escapeHtml(safeMessage || '-').replace(/\n/g, '<br>');
+  const html = `
+    <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.55;">
+      <h2 style="margin: 0 0 12px; color: #b80000;">New PK Supply Chain Website Lead</h2>
+      <table style="border-collapse: collapse; width: 100%; max-width: 640px;">
+        <tr><td style="padding: 6px 0; font-weight: 700;">Name</td><td style="padding: 6px 0;">${escapeHtml(name)}</td></tr>
+        <tr><td style="padding: 6px 0; font-weight: 700;">Email</td><td style="padding: 6px 0;">${escapeHtml(email)}</td></tr>
+        <tr><td style="padding: 6px 0; font-weight: 700;">Language</td><td style="padding: 6px 0;">${language === 'en' ? 'English' : 'Thai'}</td></tr>
+        <tr><td style="padding: 6px 0; font-weight: 700;">Submitted</td><td style="padding: 6px 0;">${escapeHtml(submittedAt)} Bangkok time</td></tr>
+        <tr><td style="padding: 6px 0; font-weight: 700;">Session</td><td style="padding: 6px 0;">${escapeHtml(sessionId || '-')}</td></tr>
+      </table>
+      <h3 style="margin: 18px 0 8px;">Message</h3>
+      <div style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 10px; background: #f9fafb;">${htmlMessage}</div>
+      <p style="margin-top: 14px;">${attachment ? `Attached image: ${escapeHtml(attachment.filename)}` : 'No image attached.'}</p>
+    </div>
+  `;
+
+  return {
+    from: MAIL_FROM,
+    to: LEAD_TO_EMAIL,
+    replyTo: email,
+    subject: `Website lead from ${name} - PK Supply Chain`,
+    text: lines.join('\n'),
+    html,
+    attachments: attachment ? [attachment] : []
+  };
+}
 
 /**
  * PK Supply Chain - Context-aware response generation
