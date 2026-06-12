@@ -720,7 +720,7 @@ const QUOTATION_FIELDS = [
   },
   {
     key: 'projectType',
-    markers: ['ประเภทโครงการ', 'project type'],
+    markers: ['ประเภทโครงการ', 'งานประเภทไหน', 'project type', 'what type of project'],
     th: 'โครงการนี้เป็นงานประเภทไหน เช่น ระบบลำเลียง ออกแบบไลน์ผลิต ติดตั้ง หรือซ่อมบำรุงครับ/คะ',
     en: 'What type of project is this, such as conveyor system, production-line design, installation, or maintenance?',
     label: 'Project type',
@@ -736,7 +736,7 @@ const QUOTATION_FIELDS = [
   },
   {
     key: 'projectTimeline',
-    markers: ['ระยะเวลาดำเนินโครงการ', 'project timeline'],
+    markers: ['ระยะเวลาดำเนินโครงการ', 'ช่วงเวลาใด', 'project timeline', 'target start date'],
     th: 'ต้องการให้โครงการเริ่มหรือใช้งานได้ในช่วงเวลาใดครับ/คะ',
     en: 'What project timeline or target start date should our team consider?',
     label: 'Project timeline',
