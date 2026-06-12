@@ -385,43 +385,43 @@ function generateRuleBasedReply(message, language = 'th') {
   const replies = [
     {
       keywords: /hello|hi|hey|สวัสดี|หวัดดี/i,
-      th: 'สวัสดีครับ ยินดีต้อนรับสู่ PK Supply Chain ต้องการสอบถามเรื่องบริการ ออกแบบ ผลิต ติดตั้ง หรือซ่อมบำรุงใช่ไหมครับ',
-      en: 'Hello, welcome to PK Supply Chain. Would you like help with design, manufacturing, installation, or maintenance services?'
+      th: 'สวัสดีครับ เราเป็นผู้ช่วยของ PK Supply Chain สำหรับงานขายและซัพพอร์ตด้านระบบลำเลียงและระบบการผลิต อยากให้เราช่วยดูโครงการหรือปัญหาส่วนไหนก่อนครับ',
+      en: 'Hello, we are the PK Supply Chain sales and support assistant for conveyor and production systems. What project or issue would you like us to help with first?'
     },
     {
-      keywords: /service|services|บริการ|ทำอะไร|รับทำ/i,
-      th: 'PK Supply Chain ให้บริการออกแบบ ผลิต ติดตั้ง และซ่อมบำรุง โดยทีมงานมืออาชีพที่มีประสบการณ์มากกว่า 20 ปีครับ',
-      en: 'PK Supply Chain provides design, manufacturing, installation, and maintenance services with more than 20 years of professional experience.'
+      keywords: /service|services|conveyor|belt|roller|top chain|บริการ|ทำอะไร|รับทำ|สายพาน|ลำเลียง|ระบบลำเลียง/i,
+      th: 'PK Supply Chain ให้บริการออกแบบ ผลิต ติดตั้ง และซ่อมบำรุงระบบลำเลียงและไลน์การผลิต รวมถึง Belt, Roller, Top Chain และระบบสั่งทำเฉพาะโรงงานครับ ตอนนี้โรงงานของคุณต้องการปรับปรุงหรือสร้างระบบส่วนไหนเป็นหลักครับ',
+      en: 'PK Supply Chain provides design, manufacturing, installation, and maintenance for conveyor and production systems, including belt, roller, top chain, and custom factory solutions. Which part of your factory process do you want to improve or build?'
     },
     {
       keywords: /price|cost|quote|fee|quotation|ราคา|ใบเสนอราคา|ค่าใช้จ่าย/i,
-      th: 'สำหรับราคาและใบเสนอราคา กรุณาติดต่อทีมงานที่อีเมล pongchai@pksupplychain.com หรือโทร 02-1082828 เพื่อประเมินตามรายละเอียดงานครับ',
-      en: 'For pricing and quotations, please contact pongchai@pksupplychain.com or call 02-1082828 so the team can estimate based on your project details.'
+      th: 'สำหรับราคาและใบเสนอราคา ทีมงานจะประเมินตามรายละเอียดโครงการและส่งกลับทางอีเมลครับ ช่วยเล่าประเภทงาน พื้นที่ติดตั้ง และช่วงเวลาที่ต้องการใช้งานให้เราทราบหน่อยครับ',
+      en: 'For pricing and quotations, our team estimates based on project details and can send the quotation by email. Please share the project type, installation location, and target timeline.'
     },
     {
       keywords: /contact|address|phone|email|ติดต่อ|ที่อยู่|เบอร์|โทร|อีเมล/i,
-      th: 'ติดต่อ PK Supply Chain ได้ที่ โทร 02-1082828 อีเมล pongchai@pksupplychain.com ที่อยู่ 22/5 หมู่ 10 ตำบลบึงทองหลาง อำเภอลำลูกกา จังหวัดปทุมธานี 12150',
-      en: 'You can contact PK Supply Chain at 02-1082828 or pongchai@pksupplychain.com. Address: 22/5 Moo 10, Bueng Thong Lang, Lam Luk Ka, Pathum Thani 12150.'
+      th: 'ติดต่อ PK Supply Chain ได้ที่ 02-108-2828, 083-531-0696, 086-688-9799 หรือ pongchai@pksupplychain.com ที่อยู่ 22/5 หมู่ 10 ตำบลบึงทองหลาง อำเภอลำลูกกา จังหวัดปทุมธานี 12150 ต้องการให้ทีมงานติดต่อกลับเรื่องโครงการประเภทไหนครับ',
+      en: 'You can contact PK Supply Chain at 02-108-2828, 083-531-0696, 086-688-9799, or pongchai@pksupplychain.com. Address: 22/5 Moo 10, Bueng Thong Lang, Lam Luk Ka, Pathum Thani 12150. What project should our team follow up on?'
     },
     {
       keywords: /production|manufacturing|factory|ผลิต|โรงงาน/i,
-      th: 'เรามีบริการผลิตตามความต้องการของโครงการ พร้อมดูแลคุณภาพและกระบวนการทำงานอย่างเป็นระบบครับ',
-      en: 'We provide project-based manufacturing services with quality control and a systematic working process.'
+      th: 'เรามีบริการผลิตเครื่องจักรและระบบตามความต้องการของโครงการ พร้อมดูแลคุณภาพและกระบวนการทำงานอย่างเป็นระบบครับ โครงการนี้เกี่ยวกับสินค้า ชิ้นงาน หรือกระบวนการผลิตประเภทไหนครับ',
+      en: 'We provide project-based manufacturing for machines and systems with quality control and a systematic process. What product, part, or production process is this project for?'
     },
     {
       keywords: /installation|setup|install|ติดตั้ง/i,
-      th: 'ทีมงานสามารถให้บริการติดตั้งหน้างานได้ กรุณาส่งรายละเอียดพื้นที่และขอบเขตงานเพื่อประเมินเวลาและราคา',
-      en: 'Our team can provide on-site installation. Please share the site details and scope so we can estimate timeline and cost.'
+      th: 'ทีมงานสามารถให้บริการติดตั้งหน้างานได้ โดยประเมินจากพื้นที่ ขอบเขตงาน และระบบที่ต้องติดตั้งครับ พื้นที่ติดตั้งอยู่จังหวัดไหนและเป็นระบบประเภทใดครับ',
+      en: 'Our team can provide on-site installation based on the site, scope, and system type. Where is the installation site, and what system needs to be installed?'
     },
     {
       keywords: /maintenance|repair|fix|ซ่อม|ซ่อมบำรุง|บำรุง/i,
-      th: 'เรามีบริการซ่อมบำรุงและดูแลระบบ กรุณาแจ้งอาการหรือรายละเอียดงานเพื่อให้ทีมงานแนะนำขั้นตอนถัดไป',
-      en: 'We provide maintenance and repair services. Please describe the issue or service details so our team can recommend the next step.'
+      th: 'เรามีบริการซ่อมบำรุง ดูแลระบบ และจัดหาอะไหล่สำหรับสายพานหรือเครื่องจักรครับ อาการที่พบเกิดกับระบบไหนและเริ่มเป็นตั้งแต่เมื่อไหร่ครับ',
+      en: 'We provide maintenance, repair, and spare parts support for conveyors and machinery. Which system has the issue, and when did it start?'
     },
     {
       keywords: /experience|background|ประสบการณ์|กี่ปี/i,
-      th: 'PK Supply Chain มีประสบการณ์ด้านงานบริการ ออกแบบ ผลิต ติดตั้ง และซ่อมบำรุงมากกว่า 20 ปีครับ',
-      en: 'PK Supply Chain has more than 20 years of experience in design, manufacturing, installation, and maintenance services.'
+      th: 'PK Supply Chain มีประสบการณ์มากกว่า 20 ปีด้านการออกแบบ ผลิต ติดตั้ง และซ่อมบำรุงระบบลำเลียงและระบบการผลิตครับ คุณกำลังมองหาประสบการณ์ในระบบหรืออุตสาหกรรมประเภทไหนครับ',
+      en: 'PK Supply Chain has more than 20 years of experience in design, manufacturing, installation, and maintenance for conveyor and production systems. What type of system or industry experience are you looking for?'
     },
     {
       keywords: /thanks|thank you|ขอบคุณ/i,
@@ -438,8 +438,8 @@ function generateRuleBasedReply(message, language = 'th') {
   return formatLanguageReply(
     message,
     language,
-    'ขอบคุณสำหรับคำถามครับ กรุณาฝากรายละเอียดเพิ่มเติม หรือ ติดต่อทีมงานที่ pongchai@pksupplychain.com โทร 02-1082828',
-    'Thank you for your inquiry. Please share more details, or contact our team at pongchai@pksupplychain.com or 02-1082828.'
+    'ขอบคุณสำหรับคำถามครับ หากเป็นงานออกแบบ ผลิต ติดตั้ง หรือซ่อมบำรุง ทีมงานสามารถช่วยประเมินให้ได้ กรุณาเล่ารายละเอียดโครงการหรือปัญหาที่ต้องการให้เราช่วยดูเพิ่มเติมครับ',
+    'Thank you for your inquiry. For design, manufacturing, installation, or maintenance work, our team can help review the details. Please describe the project or issue you want us to look at.'
   );
 }
 
