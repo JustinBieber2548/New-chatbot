@@ -466,8 +466,8 @@ function getModelInfoReply(message, language) {
     return formatLanguageReply(
       message,
       language,
-      `ตอนนี้ผมเป็น AI Agent สำหรับฝ่ายขายและซัพพอร์ตของ PK Supply Chain โดยตั้งค่าให้ใช้โมเดล ${getModelLabel()} บนฝั่งเซิร์ฟเวอร์ครับ`,
-      `I am currently configured as a PK Supply Chain sales and support AI agent using ${getModelLabel()} on the server side.`
+      `ตอนนี้เราเป็น AI Agent สำหรับฝ่ายขายและซัพพอร์ตของ PK Supply Chain โดยตั้งค่าให้ใช้โมเดล ${getModelLabel()} บนฝั่งเซิร์ฟเวอร์ครับ`,
+      `We are currently configured as a PK Supply Chain sales and support AI agent using ${getModelLabel()} on the server side.`
     );
   }
 
@@ -672,19 +672,91 @@ async function generateReply(message, history = [], language = 'th') {
   const cleanLLMReply = sanitizeLLMReply(llmReply);
   if (cleanLLMReply) return cleanLLMReply;
 
-  return generateRuleBasedReply(message, language);
+  return generateRuleBasedReply(message, history, language);
 }
 
-function generateRuleBasedReply(message, language = 'th') {
+function isQuotationIntent(text) {
+  return /price|cost|quote|fee|quotation|rfq|ราคา|ใบเสนอราคา|เสนอราคา|ค่าใช้จ่าย|ประเมินราคา/i.test(text);
+}
+
+function buildQuotationStepReply(message, history = [], language = 'th') {
+  const assistantText = history
+    .filter(item => item.role === 'assistant')
+    .map(item => item.message || '')
+    .join('\n')
+    .toLowerCase();
+
+  const steps = [
+    {
+      markers: ['ชื่อบริษัท', 'company name'],
+      th: 'สำหรับใบเสนอราคา เราจะให้ทีมฝ่ายขายประเมินตามรายละเอียดโครงการครับ ขอทราบชื่อบริษัทของโครงการนี้ก่อนครับ/คะ',
+      en: 'For a quotation, our sales team will estimate based on the project details. What is the company name for this project?'
+    },
+    {
+      markers: ['ชื่อผู้ติดต่อ', 'contact name'],
+      th: 'ขอบคุณครับ/ค่ะ ขอทราบชื่อผู้ติดต่อสำหรับโครงการนี้ครับ/คะ',
+      en: 'Thank you. What is the contact name for this project?'
+    },
+    {
+      markers: ['เบอร์โทรศัพท์ที่ทีมฝ่ายขาย', 'phone number can our sales team'],
+      th: 'ขอทราบเบอร์โทรศัพท์ที่ทีมฝ่ายขายสามารถติดต่อกลับได้ครับ/คะ',
+      en: 'What phone number can our sales team use to contact you?'
+    },
+    {
+      markers: ['อีเมลสำหรับส่งข้อมูลโครงการ', 'email should we use'],
+      th: 'ขอทราบอีเมลสำหรับส่งข้อมูลโครงการและใบเสนอราคาครับ/คะ',
+      en: 'What email should we use for project details and the quotation?'
+    },
+    {
+      markers: ['ประเภทโครงการ', 'project type'],
+      th: 'โครงการนี้เป็นงานประเภทไหน เช่น ระบบลำเลียง ออกแบบไลน์ผลิต ติดตั้ง หรือซ่อมบำรุงครับ/คะ',
+      en: 'What type of project is this, such as conveyor system, production-line design, installation, or maintenance?'
+    },
+    {
+      markers: ['สถานที่ติดตั้ง', 'installation location'],
+      th: 'สถานที่ติดตั้งของโครงการอยู่ที่จังหวัดหรือพื้นที่ใดครับ/คะ',
+      en: 'Where is the installation location for this project?'
+    },
+    {
+      markers: ['ระยะเวลาดำเนินโครงการ', 'project timeline'],
+      th: 'ต้องการให้โครงการเริ่มหรือใช้งานได้ในช่วงเวลาใดครับ/คะ',
+      en: 'What project timeline or target start date should our team consider?'
+    }
+  ];
+
+  const nextStep = steps.find(step => !step.markers.some(marker => assistantText.includes(marker)));
+  if (!nextStep) {
+    return formatLanguageReply(
+      message,
+      language,
+      'เราได้รับรายละเอียดหลักสำหรับการขอใบเสนอราคาแล้วครับ ทีมฝ่ายขายจะติดต่อกลับโดยเร็วที่สุด #ATP',
+      'We have the main quotation details. Our sales team will contact you soon. #ATP'
+    );
+  }
+
+  return formatLanguageReply(message, language, nextStep.th, nextStep.en);
+}
+
+function generateRuleBasedReply(message, history = [], language = 'th') {
   const msg = message.toLowerCase();
+  const assistantText = history
+    .filter(item => item.role === 'assistant')
+    .map(item => item.message || '')
+    .join('\n')
+    .toLowerCase();
 
   if (/\b(model|llm|gpt|gemini|ai model|ai)\b|what are you|ใช้โมเดล|โมเดล|เอไอ/i.test(message)) {
     return formatLanguageReply(
       message,
       language,
-      'ตอนนี้แชทบอทนี้ยังไม่ได้ใช้ LLM เช่น GPT-OSS 120B หรือ Gemini 3 Flash ครับ เป็นระบบตอบกลับตามกฎที่ตั้งไว้สำหรับข้อมูลของ PK Supply Chain หากต้องการ ผมสามารถเชื่อมต่อ LLM ให้เป็น AI Agent ได้ในขั้นถัดไป',
-      'This chatbot is not currently using an LLM such as GPT-OSS 120B or Gemini 3 Flash. It is a rule-based PK Supply Chain assistant. If needed, it can be upgraded next to use an LLM as a real AI agent.'
+      `ตอนนี้เราเป็น AI Agent สำหรับฝ่ายขายและซัพพอร์ตของ PK Supply Chain โดยตั้งค่าให้ใช้โมเดล ${getModelLabel()} บนฝั่งเซิร์ฟเวอร์ครับ`,
+      `We are currently configured as a PK Supply Chain sales and support AI agent using ${getModelLabel()} on the server side.`
     );
+  }
+
+  const quotationFlowStarted = /ชื่อบริษัท|company name|ชื่อผู้ติดต่อ|contact name|เบอร์โทรศัพท์ที่ทีมฝ่ายขาย|phone number can our sales team|อีเมลสำหรับส่งข้อมูลโครงการ|email should we use|ประเภทโครงการ|project type|สถานที่ติดตั้ง|installation location|ระยะเวลาดำเนินโครงการ|project timeline/.test(assistantText);
+  if (isQuotationIntent(message) || quotationFlowStarted) {
+    return buildQuotationStepReply(message, history, language);
   }
 
   const replies = [
@@ -700,8 +772,8 @@ function generateRuleBasedReply(message, language = 'th') {
     },
     {
       keywords: /price|cost|quote|fee|quotation|ราคา|ใบเสนอราคา|ค่าใช้จ่าย/i,
-      th: 'สำหรับราคาและใบเสนอราคา ทีมงานจะประเมินตามรายละเอียดโครงการและส่งกลับทางอีเมลครับ ช่วยเล่าประเภทงาน พื้นที่ติดตั้ง และช่วงเวลาที่ต้องการใช้งานให้เราทราบหน่อยครับ',
-      en: 'For pricing and quotations, our team estimates based on project details and can send the quotation by email. Please share the project type, installation location, and target timeline.'
+      th: 'สำหรับใบเสนอราคา เราจะให้ทีมฝ่ายขายประเมินตามรายละเอียดโครงการครับ ขอทราบชื่อบริษัทของโครงการนี้ก่อนครับ/คะ',
+      en: 'For a quotation, our sales team will estimate based on the project details. What is the company name for this project?'
     },
     {
       keywords: /contact|address|phone|email|ติดต่อ|ที่อยู่|เบอร์|โทร|อีเมล/i,
