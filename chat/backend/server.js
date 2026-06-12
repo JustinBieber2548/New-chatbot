@@ -138,12 +138,13 @@ app.post('/chat', verifyApiKey, verifyDomain, async (req, res) => {
 /**
  * POST /lead
  * Send visitor contact details to PK Supply Chain.
- * Body: { name, email, message, sessionId, language, image?: { name, type, dataUrl } }
+ * Body: { name, email, phone, message, sessionId, language, image?: { name, type, dataUrl } }
  */
 app.post('/lead', verifyApiKey, verifyDomain, async (req, res) => {
-  const { name, email, message = '', sessionId = '', language = 'th', image = null } = req.body;
+  const { name, email, phone = '', message = '', sessionId = '', language = 'th', image = null } = req.body;
   const cleanName = normalizeText(name, 120);
   const cleanEmail = normalizeText(email, 180);
+  const cleanPhone = normalizeText(phone, 80);
   const cleanMessage = normalizeLongText(message, 1600);
 
   if (!cleanName || !isValidEmail(cleanEmail)) {
@@ -181,6 +182,7 @@ app.post('/lead', verifyApiKey, verifyDomain, async (req, res) => {
     const mail = buildLeadMail({
       name: cleanName,
       email: cleanEmail,
+      phone: cleanPhone,
       message: cleanMessage,
       sessionId,
       language,
@@ -368,7 +370,7 @@ function getMailTransporter() {
   return mailTransporter;
 }
 
-function buildLeadMail({ name, email, message, sessionId, language, attachment }) {
+function buildLeadMail({ name, email, phone, message, sessionId, language, attachment }) {
   const submittedAt = new Date().toLocaleString('en-GB', {
     timeZone: 'Asia/Bangkok',
     dateStyle: 'medium',
@@ -381,6 +383,7 @@ function buildLeadMail({ name, email, message, sessionId, language, attachment }
     ``,
     `Name: ${name}`,
     `Email: ${email}`,
+    `Phone: ${phone || '-'}`,
     `Language: ${language === 'en' ? 'English' : 'Thai'}`,
     `Submitted: ${submittedAt} Bangkok time`,
     `Session: ${sessionId || '-'}`,
@@ -398,6 +401,7 @@ function buildLeadMail({ name, email, message, sessionId, language, attachment }
       <table style="border-collapse: collapse; width: 100%; max-width: 640px;">
         <tr><td style="padding: 6px 0; font-weight: 700;">Name</td><td style="padding: 6px 0;">${escapeHtml(name)}</td></tr>
         <tr><td style="padding: 6px 0; font-weight: 700;">Email</td><td style="padding: 6px 0;">${escapeHtml(email)}</td></tr>
+        <tr><td style="padding: 6px 0; font-weight: 700;">Phone</td><td style="padding: 6px 0;">${escapeHtml(phone || '-')}</td></tr>
         <tr><td style="padding: 6px 0; font-weight: 700;">Language</td><td style="padding: 6px 0;">${language === 'en' ? 'English' : 'Thai'}</td></tr>
         <tr><td style="padding: 6px 0; font-weight: 700;">Submitted</td><td style="padding: 6px 0;">${escapeHtml(submittedAt)} Bangkok time</td></tr>
         <tr><td style="padding: 6px 0; font-weight: 700;">Session</td><td style="padding: 6px 0;">${escapeHtml(sessionId || '-')}</td></tr>
@@ -481,14 +485,18 @@ function buildAgentInstructions(language = 'th') {
   return [
     'You are pk, the official AI sales and support assistant for PK Supply Chain Co., Ltd.',
     `Current selected chat language is ${languageName}. Reply in ${languageName} unless the visitor clearly asks to switch language.`,
-    'Use "เรา" in Thai, and "we" in English. Do not use first-person singular.',
-    'Answer from the knowledge base below only. If the answer is not available, politely say the support team will contact the customer with more information.',
-    'Reply directly to the visitor in a short, clear, professional, and natural sales-support message.',
-    'After answering, ask exactly one relevant open-ended question that helps understand the customer need. Do not ask yes/no questions. Do not repeat a question already asked in the conversation.',
-    'Never invent prices, discounts, certifications, legal claims, or exact timelines. For quotations, explain that the quotation will be sent by email after the team reviews the details.',
-    'For any project/RFQ/consultation request, collect these one at a time when missing: company name, contact name, phone number, email, industry, factory/project location, project type, budget, timeline, existing equipment, and whether drawings/files are available.',
-    'When enough lead information is gathered, say the sales team will contact them soon and include #ATP at the end of the project summary.',
-    'If a customer mentions drawings or files, tell them the team can receive files by email; do not claim files are stored.',
+    'Answer the customer question first. Use only the knowledge base below.',
+    'If the knowledge base does not contain the answer, politely say company staff will contact the customer with more information.',
+    'Reply concisely, clearly, professionally, and naturally.',
+    'Use "เรา" in Thai, and "we" in English. Do not use first-person singular such as ฉัน, ผม, ดิฉัน, or I.',
+    'Never invent or guess information outside the knowledge base.',
+    'Never state prices unless a price exists in the knowledge base.',
+    'After answering, ask exactly one relevant open-ended question that helps understand the customer need.',
+    'Do not ask yes/no questions. Do not repeat a question already asked in the conversation.',
+    'If the customer does not need more information, ask the closing question in the current chat language. Thai wording: "มีเรื่องอื่นที่เราสามารถช่วยเหลือเพิ่มเติมได้ไหมครับ/คะ" English wording: "Is there anything else we can help you with?"',
+    'For quotation/RFQ requests, collect these missing details one at a time: company name, contact name, phone number, email, project type, installation location, and project timeline.',
+    'When enough quotation details are gathered, summarize the project briefly, say the sales team will contact them soon, and include #ATP at the end.',
+    'If drawings or images are mentioned, tell the customer they can attach an image in the contact form or send details for the team to review.',
     'Knowledge base: PK Supply Chain Co., Ltd. has more than 20 years of experience in design, manufacturing, installation, and maintenance of conveyor systems and industrial production systems.',
     'Services: design and engineering consultation, conveyor system design, production line design, production improvement, automation consultation, manufacturing, custom machinery, installation, preventive maintenance, conveyor/machine repair, performance improvement, spare parts sourcing.',
     'Products and solutions: Shooter System, Platform Structure, Main Hopper, Top Chain Conveyor, Press Machine & Conveyor Line, Power Roller Conveyor, Building to Building Conveyor, Belt Incline Conveyor for plastic parts, Assembly Line, Spot Welding Machine.',

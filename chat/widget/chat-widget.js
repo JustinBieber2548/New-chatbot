@@ -15,6 +15,7 @@
       leadTitle: 'ฝากข้อมูลติดต่อ',
       namePlaceholder: 'ชื่อของคุณ',
       emailPlaceholder: 'อีเมล',
+      phonePlaceholder: 'เบอร์โทรศัพท์',
       helpPlaceholder: 'ให้เราช่วยอะไรดีครับ?',
       imageButton: 'แนบรูป',
       imageRemove: 'ลบรูป',
@@ -39,6 +40,7 @@
       leadTitle: 'Leave contact details',
       namePlaceholder: 'Your name',
       emailPlaceholder: 'Email',
+      phonePlaceholder: 'Phone number',
       helpPlaceholder: 'How can we help?',
       imageButton: 'Attach image',
       imageRemove: 'Remove image',
@@ -333,6 +335,7 @@
         <div style="display: grid; gap: 10px;">
           <input class="pk-lead-field" data-lead-name type="text" autocomplete="name" style="height: 46px;" placeholder="${this.t('namePlaceholder')}" />
           <input class="pk-lead-field" data-lead-email type="email" autocomplete="email" style="height: 46px;" placeholder="${this.t('emailPlaceholder')}" />
+          <input class="pk-lead-field" data-lead-phone type="tel" autocomplete="tel" style="height: 46px;" placeholder="${this.t('phonePlaceholder')}" />
           <textarea class="pk-lead-field" data-lead-message rows="3" style="min-height: 72px; resize: none; padding-top: 12px;" placeholder="${this.t('helpPlaceholder')}"></textarea>
           <input data-lead-file type="file" accept="image/png,image/jpeg,image/webp,image/gif" style="display: none;" />
           <div style="display: flex; align-items: center; gap: 8px; min-height: 32px;">
@@ -545,6 +548,7 @@
         leadPanel.querySelector('[data-lead-title]').textContent = this.t('leadTitle');
         leadPanel.querySelector('[data-lead-name]').placeholder = this.t('namePlaceholder');
         leadPanel.querySelector('[data-lead-email]').placeholder = this.t('emailPlaceholder');
+        leadPanel.querySelector('[data-lead-phone]').placeholder = this.t('phonePlaceholder');
         leadPanel.querySelector('[data-lead-message]').placeholder = this.t('helpPlaceholder');
         leadPanel.querySelector('[data-lead-file-button]').textContent = this.t('imageButton');
         leadPanel.querySelector('[data-lead-file-remove]').textContent = this.t('imageRemove');
@@ -578,6 +582,7 @@
       const panel = this.elements.leadPanel;
       panel.querySelector('[data-lead-name]').value = '';
       panel.querySelector('[data-lead-email]').value = '';
+      panel.querySelector('[data-lead-phone]').value = '';
       panel.querySelector('[data-lead-message]').value = '';
       this.clearLeadImage();
       this.clearLeadError();
@@ -683,6 +688,7 @@
       const panel = this.elements.leadPanel;
       const name = panel.querySelector('[data-lead-name]').value.trim();
       const email = panel.querySelector('[data-lead-email]').value.trim();
+      const phone = panel.querySelector('[data-lead-phone]').value.trim();
       const message = panel.querySelector('[data-lead-message]').value.trim();
 
       if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -690,7 +696,7 @@
         return;
       }
 
-      const summary = `${this.t('leadSummary')}\n${name}\n${email}${message ? `\n${message}` : ''}`;
+      const summary = `${this.t('leadSummary')}\n${name}\n${email}${phone ? `\n${phone}` : ''}${message ? `\n${message}` : ''}`;
       this.addMessage({
         text: summary,
         imageUrl: this.state.selectedLeadImage?.dataUrl || null,
@@ -699,7 +705,7 @@
         timestamp: new Date()
       }, this.elements.messagesContainer);
 
-      this.sendLead({ name, email, message, image: this.state.selectedLeadImage });
+      this.sendLead({ name, email, phone, message, image: this.state.selectedLeadImage });
     },
 
     toggleWidget() {
@@ -820,7 +826,7 @@
       }
     },
 
-    sendLead({ name, email, message, image }) {
+    sendLead({ name, email, phone, message, image }) {
       if (!this.config.apiUrl) {
         this.addMessage({
           text: this.t('apiMissing'),
@@ -842,6 +848,7 @@
         body: JSON.stringify({
           name,
           email,
+          phone,
           message,
           image,
           sessionId: this.state.sessionId,
