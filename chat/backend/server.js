@@ -301,7 +301,6 @@ async function generateLLMReply(message, history, language = 'th') {
           contents: toGeminiContents(history),
           generationConfig: {
             temperature: 0.4,
-            candidateCount: 1,
             maxOutputTokens: 700
           }
         })
