@@ -16,7 +16,11 @@ const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.API_KEY || 'test-key-123';
 const LLM_PROVIDER = (process.env.LLM_PROVIDER || 'gemini').toLowerCase();
 const LLM_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.OPENAI_API_KEY || process.env.LLM_API_KEY || '';
-const LLM_MODEL = process.env.GEMINI_MODEL || process.env.OPENAI_MODEL || process.env.LLM_MODEL || 'gemini-3.5-flash';
+const LLM_MODEL = process.env.GEMINI_MODEL || process.env.OPENAI_MODEL || process.env.LLM_MODEL || 'gemini-3.1-flash-lite';
+const GEMINI_FALLBACK_MODELS = (process.env.GEMINI_FALLBACK_MODELS || 'gemini-3.1-flash-lite')
+  .split(',')
+  .map(model => model.trim())
+  .filter(Boolean);
 const LLM_BASE_URL = (process.env.OPENAI_BASE_URL || process.env.LLM_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
 const LLM_API_STYLE = (process.env.LLM_API_STYLE || (LLM_PROVIDER === 'gemini' ? 'gemini' : 'responses')).toLowerCase();
 const LLM_ENABLED = process.env.USE_LLM !== 'false' && Boolean(LLM_API_KEY);
@@ -166,6 +170,19 @@ function isModelQuestion(message) {
   return /\b(model|llm|gpt|gemini|ai model|ai)\b|what are you|ใช้โมเดล|โมเดล|เอไอ/i.test(message);
 }
 
+function getGeminiModelsToTry() {
+  return Array.from(new Set([LLM_MODEL, ...GEMINI_FALLBACK_MODELS]));
+}
+
+function getModelLabel() {
+  if (LLM_API_STYLE !== 'gemini') return LLM_MODEL;
+
+  const models = getGeminiModelsToTry();
+  if (models.length <= 1) return models[0];
+
+  return `${models[0]} with fallback ${models.slice(1).join(', ')}`;
+}
+
 function getModelInfoReply(message, language) {
   if (!isModelQuestion(message)) return null;
 
@@ -173,8 +190,8 @@ function getModelInfoReply(message, language) {
     return formatLanguageReply(
       message,
       language,
-      `ตอนนี้ผมเป็น AI Agent สำหรับฝ่ายขายและซัพพอร์ตของ PK Supply Chain โดยตั้งค่าให้ใช้โมเดล ${LLM_MODEL} บนฝั่งเซิร์ฟเวอร์ครับ`,
-      `I am currently configured as a PK Supply Chain sales and support AI agent using ${LLM_MODEL} on the server side.`
+      `ตอนนี้ผมเป็น AI Agent สำหรับฝ่ายขายและซัพพอร์ตของ PK Supply Chain โดยตั้งค่าให้ใช้โมเดล ${getModelLabel()} บนฝั่งเซิร์ฟเวอร์ครับ`,
+      `I am currently configured as a PK Supply Chain sales and support AI agent using ${getModelLabel()} on the server side.`
     );
   }
 
@@ -207,7 +224,7 @@ function buildAgentInstructions(language = 'th') {
     'Company address: 22/5 Moo 10, Bueng Thong Lang, Lam Luk Ka, Pathum Thani 12150.',
     'Contact: 02-108-2828, 083-531-0696, 086-688-9799, pongchai@pksupplychain.com.',
     'FAQs: We provide design, manufacturing, installation, maintenance, spare parts, production-line improvement, and custom factory solutions. We can design systems specifically for each factory.',
-    `If asked what model you use, say you are configured to use ${LLM_MODEL} on the server side. Never reveal API keys or private environment variables.`
+    `If asked what model you use, say you are configured to use ${getModelLabel()} on the server side. Never reveal API keys or private environment variables.`
   ].join('\n');
 }
 
@@ -287,27 +304,37 @@ async function generateLLMReply(message, history, language = 'th') {
 
   try {
     if (LLM_API_STYLE === 'gemini') {
-      const response = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(LLM_MODEL)}:generateContent`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': LLM_API_KEY
-        },
-        body: JSON.stringify({
-          system_instruction: {
-            parts: [{ text: buildAgentInstructions(language) }]
-          },
-          contents: toGeminiContents(history),
-          generationConfig: {
-            temperature: 0.4,
-            maxOutputTokens: 700
-          }
-        })
-      });
+      let lastGeminiError = null;
 
-      if (!response.ok) throw new Error(`Gemini request failed: ${response.status}`);
-      const data = await response.json();
-      return extractGeminiText(data) || null;
+      for (const model of getGeminiModelsToTry()) {
+        const response = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': LLM_API_KEY
+          },
+          body: JSON.stringify({
+            system_instruction: {
+              parts: [{ text: buildAgentInstructions(language) }]
+            },
+            contents: toGeminiContents(history),
+            generationConfig: {
+              temperature: 0.4,
+              maxOutputTokens: 700
+            }
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          return extractGeminiText(data) || null;
+        }
+
+        lastGeminiError = new Error(`Gemini request failed: ${response.status} (${model})`);
+        if (![400, 404, 429, 500, 503].includes(response.status)) break;
+      }
+
+      throw lastGeminiError || new Error('Gemini request failed');
     }
 
     if (LLM_API_STYLE === 'chat') {
