@@ -52,7 +52,7 @@
 
     init(options = {}) {
       this.config = { ...this.config, ...options };
-      this.state.language = this.config.language === 'en' ? 'en' : 'th';
+      this.state = { isOpen: false, messages: [], sessionId: null, typingEl: null, language: this.config.language === 'en' ? 'en' : 'th', isSending: false };
 
       const currentDomain = window.location.hostname;
       if (!currentDomain.includes(this.config.allowedDomain) && !currentDomain.includes('localhost')) {
@@ -422,7 +422,9 @@
 
     sendMessage(text, messagesContainer, input) {
       const cleanText = text.trim();
-      if (!cleanText) return;
+      if (!cleanText || this.state.isSending) return;
+
+      this.state.isSending = true;
 
       this.addMessage({
         text: cleanText,
@@ -536,6 +538,7 @@
         .then(res => res.json())
         .then(data => {
           this.removeTyping();
+          this.state.isSending = false;
           if (data.reply) {
             this.addMessage({
               text: data.reply,
@@ -546,6 +549,7 @@
         })
         .catch(err => {
           this.removeTyping();
+          this.state.isSending = false;
           console.error('Chat API error:', err);
           this.addMessage({
             text: this.t('apiError'),
