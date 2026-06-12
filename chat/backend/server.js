@@ -26,6 +26,7 @@ const LLM_BASE_URL = (process.env.OPENAI_BASE_URL || process.env.LLM_BASE_URL ||
 const LLM_API_STYLE = (process.env.LLM_API_STYLE || (LLM_PROVIDER === 'gemini' ? 'gemini' : 'responses')).toLowerCase();
 const LLM_ENABLED = process.env.USE_LLM !== 'false' && Boolean(LLM_API_KEY);
 const LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS || 6500);
+const LLM_TEMPERATURE = Number(process.env.LLM_TEMPERATURE || 0.45);
 const SMTP_HOST = process.env.SMTP_HOST || 'sv-mail4.hostsevenplus.com';
 const SMTP_PORT = Number(process.env.SMTP_PORT || 465);
 const SMTP_SECURE = process.env.SMTP_SECURE ? process.env.SMTP_SECURE !== 'false' : SMTP_PORT === 465;
@@ -486,6 +487,13 @@ function buildAgentInstructions(language = 'th') {
   return [
     'You are pk, the official AI sales and support assistant for PK Supply Chain Co., Ltd.',
     `Current selected chat language is ${languageName}. Reply in ${languageName} unless the visitor clearly asks to switch language.`,
+    'Sound like an experienced PK Supply Chain sales coordinator, not a scripted chatbot.',
+    'Use a warm, calm, human tone: acknowledge the customer context in one short phrase, then answer clearly.',
+    'Do not over-apologize, over-praise, use hype, or repeat the same opening in every message.',
+    'Use natural Thai particles such as ครับ/ค่ะ or neutral English business phrasing. Avoid stiff corporate wording.',
+    'Keep most replies to 2-4 short sentences. Use bullets only when comparing several services or details.',
+    'Mirror the customer language, urgency, and level of detail. If the customer is brief, be brief.',
+    'Do not introduce yourself as an AI or chatbot unless the customer asks what model or system you use.',
     'Answer the customer question first. Use only the knowledge base below.',
     'If the knowledge base does not contain the answer, politely say company staff will contact the customer with more information.',
     'Reply concisely, clearly, professionally, and naturally.',
@@ -599,7 +607,7 @@ async function generateLLMReply(message, history, language = 'th') {
             },
             contents: toGeminiContents(history),
             generationConfig: {
-              temperature: 0.4,
+              temperature: LLM_TEMPERATURE,
               maxOutputTokens: 700
             }
           })
@@ -630,7 +638,7 @@ async function generateLLMReply(message, history, language = 'th') {
             { role: 'system', content: buildAgentInstructions(language) },
             ...toOpenAIMessages(history)
           ],
-          temperature: 0.4,
+          temperature: LLM_TEMPERATURE,
           max_tokens: 700
         })
       });
@@ -650,6 +658,7 @@ async function generateLLMReply(message, history, language = 'th') {
         model: LLM_MODEL,
         instructions: buildAgentInstructions(language),
         input: toOpenAIMessages(history),
+        temperature: LLM_TEMPERATURE,
         max_output_tokens: 700,
         store: false
       })
@@ -687,32 +696,32 @@ const QUOTATION_FIELDS = [
   {
     key: 'companyName',
     markers: ['ชื่อบริษัท', 'company name'],
-    th: 'สำหรับใบเสนอราคา เราจะให้ทีมฝ่ายขายประเมินตามรายละเอียดโครงการครับ ขอทราบชื่อบริษัทของโครงการนี้ก่อนครับ/คะ',
-    en: 'For a quotation, our sales team will estimate based on the project details. What is the company name for this project?',
+    th: 'ได้ครับ/ค่ะ เราช่วยส่งเรื่องให้ฝ่ายขายประเมินใบเสนอราคาให้ได้ ขอทราบชื่อบริษัทของโครงการนี้ก่อนนะครับ/คะ',
+    en: 'Sure, we can send this to sales for a quotation review. What is the company name for this project?',
     label: 'Company name',
     maxLength: 180
   },
   {
     key: 'contactName',
     markers: ['ชื่อผู้ติดต่อ', 'contact name'],
-    th: 'ขอบคุณครับ/ค่ะ ขอทราบชื่อผู้ติดต่อสำหรับโครงการนี้ครับ/คะ',
-    en: 'Thank you. What is the contact name for this project?',
+    th: 'ขอบคุณครับ/ค่ะ แล้วชื่อผู้ติดต่อที่ให้ทีมฝ่ายขายประสานงานคือชื่ออะไรครับ/คะ',
+    en: 'Thank you. Who should our sales team contact for this project?',
     label: 'Contact name',
     maxLength: 180
   },
   {
     key: 'phone',
     markers: ['เบอร์โทรศัพท์ที่ทีมฝ่ายขาย', 'phone number can our sales team'],
-    th: 'ขอทราบเบอร์โทรศัพท์ที่ทีมฝ่ายขายสามารถติดต่อกลับได้ครับ/คะ',
-    en: 'What phone number can our sales team use to contact you?',
+    th: 'ขอเบอร์โทรศัพท์ที่ทีมฝ่ายขายสามารถติดต่อกลับได้สะดวกครับ/คะ',
+    en: 'What phone number is best for our sales team to reach you?',
     label: 'Phone',
     maxLength: 120
   },
   {
     key: 'email',
-    markers: ['อีเมลสำหรับส่งข้อมูลโครงการ', 'email should we use', 'email address for the project details'],
-    th: 'ขอทราบอีเมลสำหรับส่งข้อมูลโครงการและใบเสนอราคาครับ/คะ',
-    en: 'What email should we use for project details and the quotation?',
+    markers: ['อีเมลสำหรับส่งข้อมูลโครงการ', 'อีเมลสำหรับส่งรายละเอียดโครงการ', 'email should we use', 'email address for the project details'],
+    th: 'ขออีเมลสำหรับส่งรายละเอียดโครงการและใบเสนอราคาด้วยครับ/คะ',
+    en: 'What email should we use for the project details and quotation?',
     invalidTh: 'กรุณาพิมพ์อีเมลสำหรับส่งข้อมูลโครงการให้ถูกต้องครับ/ค่ะ',
     invalidEn: 'Please enter a valid email address for the project details and quotation.',
     label: 'Email',
@@ -721,24 +730,24 @@ const QUOTATION_FIELDS = [
   {
     key: 'projectType',
     markers: ['ประเภทโครงการ', 'งานประเภทไหน', 'project type', 'what type of project'],
-    th: 'โครงการนี้เป็นงานประเภทไหน เช่น ระบบลำเลียง ออกแบบไลน์ผลิต ติดตั้ง หรือซ่อมบำรุงครับ/คะ',
-    en: 'What type of project is this, such as conveyor system, production-line design, installation, or maintenance?',
+    th: 'งานนี้เป็นประเภทไหนครับ/คะ เช่น ระบบลำเลียง ออกแบบไลน์ผลิต ติดตั้ง หรือซ่อมบำรุง',
+    en: 'What type of work is this, such as conveyor system, production-line design, installation, or maintenance?',
     label: 'Project type',
     maxLength: 500
   },
   {
     key: 'installationLocation',
     markers: ['สถานที่ติดตั้ง', 'installation location'],
-    th: 'สถานที่ติดตั้งของโครงการอยู่ที่จังหวัดหรือพื้นที่ใดครับ/คะ',
-    en: 'Where is the installation location for this project?',
+    th: 'สถานที่ติดตั้งอยู่จังหวัดหรือพื้นที่ไหนครับ/คะ',
+    en: 'Where is the installation site or project area?',
     label: 'Installation location',
     maxLength: 500
   },
   {
     key: 'projectTimeline',
-    markers: ['ระยะเวลาดำเนินโครงการ', 'ช่วงเวลาใด', 'project timeline', 'target start date'],
-    th: 'ต้องการให้โครงการเริ่มหรือใช้งานได้ในช่วงเวลาใดครับ/คะ',
-    en: 'What project timeline or target start date should our team consider?',
+    markers: ['ระยะเวลาดำเนินโครงการ', 'ช่วงเวลาใด', 'ช่วงไหน', 'project timeline', 'target start date'],
+    th: 'ต้องการให้เริ่มงานหรือใช้งานได้ประมาณช่วงไหนครับ/คะ',
+    en: 'When would you like the project to start or be ready to use?',
     label: 'Project timeline',
     maxLength: 500
   }
@@ -899,8 +908,8 @@ function buildQuotationFinishedReply(message, language, sendResult) {
     return formatLanguageReply(
       message,
       language,
-      `ขอบคุณครับ/ค่ะ เราได้รับข้อมูลครบถ้วนและส่งรายละเอียดให้ทีมฝ่ายขายเรียบร้อยแล้ว ทีมฝ่ายขายจะติดต่อกลับโดยเร็วที่สุด #ATP${nearLimitThai}`,
-      `Thank you. We have received all required details and sent them to our sales team. The sales team will contact you soon. #ATP${nearLimitEn}`
+      `ขอบคุณครับ/ค่ะ เราได้รับข้อมูลครบถ้วนและส่งรายละเอียดให้ทีมฝ่ายขายเรียบร้อยแล้ว เดี๋ยวทีมฝ่ายขายจะตรวจรายละเอียดและติดต่อกลับโดยเร็วที่สุด #ATP${nearLimitThai}`,
+      `Thank you. We have received all required details and sent them to our sales team. Our sales team will review the details and contact you soon. #ATP${nearLimitEn}`
     );
   }
 
@@ -961,38 +970,38 @@ function generateRuleBasedReply(message, history = [], language = 'th') {
   const replies = [
     {
       keywords: /hello|hi|hey|สวัสดี|หวัดดี/i,
-      th: 'สวัสดีครับ เราเป็นผู้ช่วยของ PK Supply Chain สำหรับงานขายและซัพพอร์ตด้านระบบลำเลียงและระบบการผลิต อยากให้เราช่วยดูโครงการหรือปัญหาส่วนไหนก่อนครับ',
-      en: 'Hello, we are the PK Supply Chain sales and support assistant for conveyor and production systems. What project or issue would you like us to help with first?'
+      th: 'สวัสดีครับ/ค่ะ ยินดีช่วยดูเรื่องระบบลำเลียงและไลน์การผลิตให้ครับ/ค่ะ ตอนนี้อยากให้เราช่วยดูโครงการหรือปัญหาส่วนไหนก่อนครับ/คะ',
+      en: 'Hello, happy to help with conveyor systems or production-line work. What project or issue would you like us to look at first?'
     },
     {
       keywords: /service|services|conveyor|belt|roller|top chain|บริการ|ทำอะไร|รับทำ|สายพาน|ลำเลียง|ระบบลำเลียง/i,
-      th: 'PK Supply Chain ให้บริการออกแบบ ผลิต ติดตั้ง และซ่อมบำรุงระบบลำเลียงและไลน์การผลิต รวมถึง Belt, Roller, Top Chain และระบบสั่งทำเฉพาะโรงงานครับ ตอนนี้โรงงานของคุณต้องการปรับปรุงหรือสร้างระบบส่วนไหนเป็นหลักครับ',
-      en: 'PK Supply Chain provides design, manufacturing, installation, and maintenance for conveyor and production systems, including belt, roller, top chain, and custom factory solutions. Which part of your factory process do you want to improve or build?'
+      th: 'ได้ครับ/ค่ะ งานของเราครอบคลุมการออกแบบ ผลิต ติดตั้ง และซ่อมบำรุงระบบลำเลียงหรือไลน์การผลิต รวมถึง Belt, Roller, Top Chain และระบบสั่งทำเฉพาะโรงงานครับ/ค่ะ ส่วนไหนของกระบวนการผลิตที่อยากให้เราช่วยดูเป็นหลักครับ/คะ',
+      en: 'Sure. We cover design, manufacturing, installation, and maintenance for conveyor and production systems, including belt, roller, top chain, and custom factory solutions. Which part of your factory process should we focus on first?'
     },
     {
       keywords: /price|cost|quote|fee|quotation|ราคา|ใบเสนอราคา|ค่าใช้จ่าย/i,
-      th: 'สำหรับใบเสนอราคา เราจะให้ทีมฝ่ายขายประเมินตามรายละเอียดโครงการครับ ขอทราบชื่อบริษัทของโครงการนี้ก่อนครับ/คะ',
-      en: 'For a quotation, our sales team will estimate based on the project details. What is the company name for this project?'
+      th: 'ได้ครับ/ค่ะ เราช่วยส่งเรื่องให้ฝ่ายขายประเมินใบเสนอราคาให้ได้ ขอทราบชื่อบริษัทของโครงการนี้ก่อนนะครับ/คะ',
+      en: 'Sure, we can send this to sales for a quotation review. What is the company name for this project?'
     },
     {
       keywords: /contact|address|phone|email|ติดต่อ|ที่อยู่|เบอร์|โทร|อีเมล/i,
-      th: 'ติดต่อ PK Supply Chain ได้ที่ 02-108-2828, 083-531-0696, 086-688-9799 หรือ pongchai@pksupplychain.com ที่อยู่ 22/5 หมู่ 10 ตำบลบึงทองหลาง อำเภอลำลูกกา จังหวัดปทุมธานี 12150 ต้องการให้ทีมงานติดต่อกลับเรื่องโครงการประเภทไหนครับ',
-      en: 'You can contact PK Supply Chain at 02-108-2828, 083-531-0696, 086-688-9799, or pongchai@pksupplychain.com. Address: 22/5 Moo 10, Bueng Thong Lang, Lam Luk Ka, Pathum Thani 12150. What project should our team follow up on?'
+      th: 'ติดต่อเราได้ที่ 02-108-2828, 083-531-0696, 086-688-9799 หรือ pongchai@pksupplychain.com ครับ/ค่ะ บริษัทอยู่ที่ 22/5 หมู่ 10 ตำบลบึงทองหลาง อำเภอลำลูกกา จังหวัดปทุมธานี 12150 อยากให้ทีมงานติดต่อกลับเรื่องงานประเภทไหนครับ/คะ',
+      en: 'You can reach us at 02-108-2828, 083-531-0696, 086-688-9799, or pongchai@pksupplychain.com. Our address is 22/5 Moo 10, Bueng Thong Lang, Lam Luk Ka, Pathum Thani 12150. What type of work should our team follow up on?'
     },
     {
       keywords: /production|manufacturing|factory|ผลิต|โรงงาน/i,
-      th: 'เรามีบริการผลิตเครื่องจักรและระบบตามความต้องการของโครงการ พร้อมดูแลคุณภาพและกระบวนการทำงานอย่างเป็นระบบครับ โครงการนี้เกี่ยวกับสินค้า ชิ้นงาน หรือกระบวนการผลิตประเภทไหนครับ',
-      en: 'We provide project-based manufacturing for machines and systems with quality control and a systematic process. What product, part, or production process is this project for?'
+      th: 'เราสามารถผลิตเครื่องจักรและระบบตามความต้องการของโครงการ พร้อมดูแลคุณภาพและขั้นตอนงานอย่างเป็นระบบครับ/ค่ะ โครงการนี้เกี่ยวกับสินค้า ชิ้นงาน หรือกระบวนการผลิตประเภทไหนครับ/คะ',
+      en: 'We can manufacture machines and systems based on project requirements, with systematic quality and process control. What product, part, or production process is this project for?'
     },
     {
       keywords: /installation|setup|install|ติดตั้ง/i,
-      th: 'ทีมงานสามารถให้บริการติดตั้งหน้างานได้ โดยประเมินจากพื้นที่ ขอบเขตงาน และระบบที่ต้องติดตั้งครับ พื้นที่ติดตั้งอยู่จังหวัดไหนและเป็นระบบประเภทใดครับ',
+      th: 'ทีมงานสามารถให้บริการติดตั้งหน้างานได้ครับ/ค่ะ โดยจะประเมินจากพื้นที่ ขอบเขตงาน และระบบที่ต้องติดตั้ง พื้นที่ติดตั้งอยู่จังหวัดไหนและเป็นระบบประเภทใดครับ/คะ',
       en: 'Our team can provide on-site installation based on the site, scope, and system type. Where is the installation site, and what system needs to be installed?'
     },
     {
       keywords: /maintenance|repair|fix|ซ่อม|ซ่อมบำรุง|บำรุง/i,
-      th: 'เรามีบริการซ่อมบำรุง ดูแลระบบ และจัดหาอะไหล่สำหรับสายพานหรือเครื่องจักรครับ อาการที่พบเกิดกับระบบไหนและเริ่มเป็นตั้งแต่เมื่อไหร่ครับ',
-      en: 'We provide maintenance, repair, and spare parts support for conveyors and machinery. Which system has the issue, and when did it start?'
+      th: 'ได้ครับ/ค่ะ เรามีบริการซ่อมบำรุง ดูแลระบบ และจัดหาอะไหล่สำหรับสายพานหรือเครื่องจักร อาการที่พบเกิดกับระบบไหนและเริ่มเป็นตั้งแต่เมื่อไหร่ครับ/คะ',
+      en: 'Sure. We provide maintenance, repair, and spare parts support for conveyors and machinery. Which system has the issue, and when did it start?'
     },
     {
       keywords: /experience|background|ประสบการณ์|กี่ปี/i,
@@ -1001,8 +1010,8 @@ function generateRuleBasedReply(message, history = [], language = 'th') {
     },
     {
       keywords: /thanks|thank you|ขอบคุณ/i,
-      th: 'ยินดีครับ หากต้องการข้อมูลเพิ่มเติมสามารถพิมพ์ถามได้ทั้งภาษาไทยหรือ English เลยครับ',
-      en: 'You are welcome. You can ask more questions in either Thai or English.'
+      th: 'ยินดีครับ/ค่ะ มีเรื่องอื่นที่เราสามารถช่วยเหลือเพิ่มเติมได้ไหมครับ/คะ',
+      en: 'You are welcome. Is there anything else we can help you with?'
     }
   ];
 
@@ -1014,8 +1023,8 @@ function generateRuleBasedReply(message, history = [], language = 'th') {
   return formatLanguageReply(
     message,
     language,
-    'ขอบคุณสำหรับคำถามครับ หากเป็นงานออกแบบ ผลิต ติดตั้ง หรือซ่อมบำรุง ทีมงานสามารถช่วยประเมินให้ได้ กรุณาเล่ารายละเอียดโครงการหรือปัญหาที่ต้องการให้เราช่วยดูเพิ่มเติมครับ',
-    'Thank you for your inquiry. For design, manufacturing, installation, or maintenance work, our team can help review the details. Please describe the project or issue you want us to look at.'
+    'ขอบคุณสำหรับข้อมูลครับ/ค่ะ ถ้าเป็นงานออกแบบ ผลิต ติดตั้ง หรือซ่อมบำรุง ทีมงานสามารถช่วยประเมินให้ได้ กรุณาเล่ารายละเอียดโครงการหรือปัญหาที่อยากให้เราช่วยดูเพิ่มเติมครับ/คะ',
+    'Thank you for the details. For design, manufacturing, installation, or maintenance work, our team can help review the project. What project details or issue would you like us to look at?'
   );
 }
 
