@@ -729,7 +729,7 @@ const QUOTATION_FIELDS = [
   },
   {
     key: 'projectType',
-    markers: ['ประเภทโครงการ', 'งานประเภทไหน', 'project type', 'what type of project'],
+    markers: ['ประเภทโครงการ', 'งานประเภทไหน', 'งานนี้เป็นประเภทไหน', 'project type', 'what type of project', 'what type of work'],
     th: 'งานนี้เป็นประเภทไหนครับ/คะ เช่น ระบบลำเลียง ออกแบบไลน์ผลิต ติดตั้ง หรือซ่อมบำรุง',
     en: 'What type of work is this, such as conveyor system, production-line design, installation, or maintenance?',
     label: 'Project type',
