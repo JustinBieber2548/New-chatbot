@@ -26,7 +26,7 @@
       imageTypeError: 'กรุณาเลือกรูปภาพเท่านั้น',
       leadInvalid: 'กรุณากรอกชื่อและอีเมลให้ถูกต้องครับ',
       leadSummary: 'ฝากข้อมูลติดต่อ',
-      welcome: 'สวัสดีครับ เราเป็นผู้ช่วยของ PK Supply Chain สอบถามเรื่องบริการระบบลำเลียงหรือฝากข้อมูลให้ทีมงานติดต่อกลับได้เลยครับ',
+      welcome: 'สวัสดีครับ/ค่ะ เล่าโครงการระบบลำเลียงหรือไลน์การผลิตที่ต้องการให้เราช่วยดูก่อนได้เลยครับ/ค่ะ หากต้องซัพพอร์ตหรือส่งต่อฝ่ายขาย เราจะช่วยจัดการต่อให้',
       apiMissing: 'ยังไม่ได้ตั้งค่า API กรุณาตั้งค่า apiUrl ใน ChatWidget.init()',
       apiError: 'เชื่อมต่อบริการแชทไม่ได้ กรุณาลองอีกครั้งครับ',
       leadError: 'ส่งข้อมูลไม่ได้ กรุณาลองอีกครั้งครับ'
@@ -51,7 +51,7 @@
       imageTypeError: 'Please choose an image file',
       leadInvalid: 'Please enter a valid name and email.',
       leadSummary: 'Contact details',
-      welcome: 'Hello, we are the PK Supply Chain assistant. Ask about conveyor services or leave your details for our team to contact you.',
+      welcome: 'Hello, tell us about the conveyor or production-line project you want help with first. If support or sales handoff is needed, we will guide the next step.',
       apiMissing: 'API is not configured. Please set apiUrl in ChatWidget.init().',
       apiError: 'Could not connect to the chat service. Please try again.',
       leadError: 'Could not send your details. Please try again.'

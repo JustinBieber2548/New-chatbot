@@ -468,8 +468,8 @@ function getModelInfoReply(message, language) {
     return formatLanguageReply(
       message,
       language,
-      `ตอนนี้เราเป็น AI Agent สำหรับฝ่ายขายและซัพพอร์ตของ PK Supply Chain โดยตั้งค่าให้ใช้โมเดล ${getModelLabel()} บนฝั่งเซิร์ฟเวอร์ครับ`,
-      `We are currently configured as a PK Supply Chain sales and support AI agent using ${getModelLabel()} on the server side.`
+      `ตอนนี้เราเป็น AI Agent ของ PK Supply Chain โดยทำงานตามลำดับ ฝ่ายขายก่อน ซัพพอร์ตลูกค้าถัดมา และ CRM สำหรับเก็บข้อมูลส่งต่อทีมงาน โดยตั้งค่าให้ใช้โมเดล ${getModelLabel()} บนฝั่งเซิร์ฟเวอร์ครับ`,
+      `We are configured as a PK Supply Chain agent using ${getModelLabel()} on the server side, working in this order: sales first, customer support second, and CRM handoff third.`
     );
   }
 
@@ -487,6 +487,10 @@ function buildAgentInstructions(language = 'th') {
   return [
     'You are pk, the official AI sales and support assistant for PK Supply Chain Co., Ltd.',
     `Current selected chat language is ${languageName}. Reply in ${languageName} unless the visitor clearly asks to switch language.`,
+    'Agent operating order: 1) sales agent, 2) customer support agent, 3) CRM handoff agent.',
+    'Start as a sales agent: understand the customer project, connect their need to PK services, qualify the opportunity, and guide them toward a consultation or quotation when appropriate.',
+    'If the customer has an existing issue, service problem, repair, maintenance, contact, or product question, switch into customer support mode after acknowledging the sales context.',
+    'Use CRM mode only after the customer asks for a quote/contact, provides contact details, or the conversation is ready for handoff. Do not ask for contact details before answering or qualifying the need.',
     'Sound like an experienced PK Supply Chain sales coordinator, not a scripted chatbot.',
     'Use a warm, calm, human tone: acknowledge the customer context in one short phrase, then answer clearly.',
     'Do not over-apologize, over-praise, use hype, or repeat the same opening in every message.',
@@ -503,7 +507,7 @@ function buildAgentInstructions(language = 'th') {
     'After answering, ask exactly one relevant open-ended question that helps understand the customer need.',
     'Do not ask yes/no questions. Do not repeat a question already asked in the conversation.',
     'If the customer does not need more information, ask the closing question in the current chat language. Thai wording: "มีเรื่องอื่นที่เราสามารถช่วยเหลือเพิ่มเติมได้ไหมครับ/คะ" English wording: "Is there anything else we can help you with?"',
-    'For quotation/RFQ requests, collect these missing details one at a time: company name, contact name, phone number, email, project type, installation location, and project timeline.',
+    'For quotation/RFQ requests, treat the flow as sales qualification first and CRM capture second. Collect these missing details one at a time: company name, contact name, phone number, email, project type, installation location, and project timeline.',
     'When enough quotation details are gathered, summarize the project briefly, say the sales team will contact them soon, and include #ATP at the end.',
     'If drawings or images are mentioned, tell the customer they can attach an image in the contact form or send details for the team to review.',
     'Knowledge base: PK Supply Chain Co., Ltd. has more than 20 years of experience in design, manufacturing, installation, and maintenance of conveyor systems and industrial production systems.',
@@ -962,16 +966,16 @@ function generateRuleBasedReply(message, history = [], language = 'th') {
     return formatLanguageReply(
       message,
       language,
-      `ตอนนี้เราเป็น AI Agent สำหรับฝ่ายขายและซัพพอร์ตของ PK Supply Chain โดยตั้งค่าให้ใช้โมเดล ${getModelLabel()} บนฝั่งเซิร์ฟเวอร์ครับ`,
-      `We are currently configured as a PK Supply Chain sales and support AI agent using ${getModelLabel()} on the server side.`
+      `ตอนนี้เราเป็น AI Agent ของ PK Supply Chain โดยทำงานตามลำดับ ฝ่ายขายก่อน ซัพพอร์ตลูกค้าถัดมา และ CRM สำหรับเก็บข้อมูลส่งต่อทีมงาน โดยตั้งค่าให้ใช้โมเดล ${getModelLabel()} บนฝั่งเซิร์ฟเวอร์ครับ`,
+      `We are configured as a PK Supply Chain agent using ${getModelLabel()} on the server side, working in this order: sales first, customer support second, and CRM handoff third.`
     );
   }
 
   const replies = [
     {
       keywords: /hello|hi|hey|สวัสดี|หวัดดี/i,
-      th: 'สวัสดีครับ/ค่ะ ยินดีช่วยดูเรื่องระบบลำเลียงและไลน์การผลิตให้ครับ/ค่ะ ตอนนี้อยากให้เราช่วยดูโครงการหรือปัญหาส่วนไหนก่อนครับ/คะ',
-      en: 'Hello, happy to help with conveyor systems or production-line work. What project or issue would you like us to look at first?'
+      th: 'สวัสดีครับ/ค่ะ เราช่วยดูความต้องการด้านระบบลำเลียงและไลน์การผลิตให้ก่อน จากนั้นถ้าเป็นงานซัพพอร์ตหรือส่งต่อทีมขายเราจะจัดการต่อให้ครับ/ค่ะ ตอนนี้อยากให้เราช่วยดูโครงการหรือปัญหาส่วนไหนก่อนครับ/คะ',
+      en: 'Hello, we can start by understanding your conveyor or production-line need, then help with support or sales handoff if needed. What project or issue would you like us to look at first?'
     },
     {
       keywords: /service|services|conveyor|belt|roller|top chain|บริการ|ทำอะไร|รับทำ|สายพาน|ลำเลียง|ระบบลำเลียง/i,
