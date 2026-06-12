@@ -443,7 +443,7 @@ function formatLanguageReply(message, language, thaiText, englishText) {
 }
 
 function isModelQuestion(message) {
-  return /\b(model|llm|gpt|gemini|ai model|ai)\b|what are you|ใช้โมเดล|โมเดล|เอไอ/i.test(message);
+  return /\b(model|llm|gpt|gemini|ai)\b|what are you|ใช้โมเดล|โมเดล|เอไอ|ใช้รุ่นอะไร|รุ่นอะไร/i.test(message);
 }
 
 function getGeminiModelsToTry() {
@@ -559,8 +559,7 @@ function sanitizeLLMReply(reply) {
   if (internalPattern.test(cleaned)) return null;
 
   const sentenceLike = /[.!?。！？ครับค่ะ]$/.test(cleaned);
-  const looksCutOff = cleaned.length < 180 && !sentenceLike;
-  if (looksCutOff) return null;
+  if (!sentenceLike) return null;
 
   return cleaned.slice(0, 1400);
 }
@@ -668,6 +667,10 @@ async function generateReply(message, history = [], language = 'th') {
   const modelInfoReply = getModelInfoReply(message, language);
   if (modelInfoReply) return modelInfoReply;
 
+  if (shouldUseQuotationFlow(message, history)) {
+    return buildQuotationStepReply(message, history, language);
+  }
+
   const llmReply = await generateLLMReply(message, history, language);
   const cleanLLMReply = sanitizeLLMReply(llmReply);
   if (cleanLLMReply) return cleanLLMReply;
@@ -679,12 +682,24 @@ function isQuotationIntent(text) {
   return /price|cost|quote|fee|quotation|rfq|ราคา|ใบเสนอราคา|เสนอราคา|ค่าใช้จ่าย|ประเมินราคา/i.test(text);
 }
 
-function buildQuotationStepReply(message, history = [], language = 'th') {
-  const assistantText = history
+function getAssistantText(history = []) {
+  return history
     .filter(item => item.role === 'assistant')
     .map(item => item.message || '')
     .join('\n')
     .toLowerCase();
+}
+
+function hasQuotationFlowStarted(history = []) {
+  return /ชื่อบริษัท|company name|ชื่อผู้ติดต่อ|contact name|เบอร์โทรศัพท์ที่ทีมฝ่ายขาย|phone number can our sales team|อีเมลสำหรับส่งข้อมูลโครงการ|email should we use|ประเภทโครงการ|project type|สถานที่ติดตั้ง|installation location|ระยะเวลาดำเนินโครงการ|project timeline/.test(getAssistantText(history));
+}
+
+function shouldUseQuotationFlow(message, history = []) {
+  return isQuotationIntent(message) || hasQuotationFlowStarted(history);
+}
+
+function buildQuotationStepReply(message, history = [], language = 'th') {
+  const assistantText = getAssistantText(history);
 
   const steps = [
     {
@@ -739,13 +754,8 @@ function buildQuotationStepReply(message, history = [], language = 'th') {
 
 function generateRuleBasedReply(message, history = [], language = 'th') {
   const msg = message.toLowerCase();
-  const assistantText = history
-    .filter(item => item.role === 'assistant')
-    .map(item => item.message || '')
-    .join('\n')
-    .toLowerCase();
 
-  if (/\b(model|llm|gpt|gemini|ai model|ai)\b|what are you|ใช้โมเดล|โมเดล|เอไอ/i.test(message)) {
+  if (isModelQuestion(message)) {
     return formatLanguageReply(
       message,
       language,
@@ -754,8 +764,7 @@ function generateRuleBasedReply(message, history = [], language = 'th') {
     );
   }
 
-  const quotationFlowStarted = /ชื่อบริษัท|company name|ชื่อผู้ติดต่อ|contact name|เบอร์โทรศัพท์ที่ทีมฝ่ายขาย|phone number can our sales team|อีเมลสำหรับส่งข้อมูลโครงการ|email should we use|ประเภทโครงการ|project type|สถานที่ติดตั้ง|installation location|ระยะเวลาดำเนินโครงการ|project timeline/.test(assistantText);
-  if (isQuotationIntent(message) || quotationFlowStarted) {
+  if (shouldUseQuotationFlow(message, history)) {
     return buildQuotationStepReply(message, history, language);
   }
 
