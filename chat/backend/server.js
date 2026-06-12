@@ -958,10 +958,6 @@ function generateRuleBasedReply(message, history = [], language = 'th') {
     );
   }
 
-  if (shouldUseQuotationFlow(message, history)) {
-    return buildQuotationStepReply(message, history, language);
-  }
-
   const replies = [
     {
       keywords: /hello|hi|hey|สวัสดี|หวัดดี/i,
